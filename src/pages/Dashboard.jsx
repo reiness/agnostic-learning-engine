@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { generateCourse } from '../services/gemini';
+import { collection, addDoc, doc, writeBatch } from 'firebase/firestore';
+import { auth, db } from '../firebase.js';
+import { generateCourse } from '../services/gemini.js';
+import { useNavigate } from 'react-router-dom';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [user] = useAuthState(auth);
   const [topic, setTopic] = useState('');
   const [duration, setDuration] = useState('7_days'); // Default to 7 Days
   const [isLoading, setIsLoading] = useState(false);
@@ -9,9 +15,57 @@ const Dashboard = () => {
   const handleGenerateCourse = async (e) => {
     e.preventDefault(); // Prevent default form submission behavior
     setIsLoading(true);
+
+    if (!user) {
+      console.error("User not logged in.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const result = await generateCourse(topic, duration);
-      console.log('Generated Course:', result);
+      const courseData = await generateCourse(topic, duration);
+
+      if (!courseData) {
+        console.error("Failed to generate course data, received null.");
+        alert("Error: Course generation failed. The API returned no data. Please try again.");
+        setIsLoading(false); // We must stop here
+        return; // And exit the function
+      }
+      
+      if (!courseData.title || !Array.isArray(courseData.dailyModules)) {
+        console.error("Invalid course data structure received from API:", courseData);
+        alert("Error: The generated course data was incomplete. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      const coursesRef = collection(db, 'courses');
+      const newCourseDocRef = await addDoc(coursesRef, {
+        userId: user.uid,
+        title: courseData.title,
+        durationDays: parseInt(duration.replace('_days', '')),
+        originalPrompt: topic,
+        status: 'active',
+        createdAt: new Date()
+      });
+
+      const newCourseId = newCourseDocRef.id;
+      const batch = writeBatch(db);
+
+      courseData.dailyModules.forEach(module => {
+        const day = module.day.toString();
+        const moduleRef = doc(db, 'courses', newCourseId, 'modules', day);
+        batch.set(moduleRef, {
+          title: module.title,
+          description: module.description,
+          learningMaterial: "",
+          isCompleted: false
+        });
+      });
+
+      await batch.commit();
+      navigate(`/course/${newCourseId}`);
+
     } catch (error) {
       console.error('Error generating course:', error);
     } finally {

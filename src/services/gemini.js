@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export const COURSE_ARCHITECT_PROMPT = `
 You are an expert curriculum designer. Your task is to create a progressive, day-by-day learning syllabus based on a given topic and duration.
 
@@ -17,36 +15,27 @@ The JSON object MUST strictly adhere to the following format:
 Based on the user's provided topic and desired duration, generate a comprehensive course syllabus in the specified JSON format. Ensure the material for each day is detailed and provides a complete learning text.
 `;
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
-
 export async function generateCourse(topic, duration) {
-  // 1. Get the generative model
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-  // 2. Create the full user prompt
-  const userPrompt = `Topic: ${topic} Duration: ${duration}`;
-
-  // 3. Send the request
   try {
-    const result = await model.generateContent([
-      COURSE_ARCHITECT_PROMPT, // Our system prompt
-      userPrompt // The user's request
-    ]);
+    // This is the special path to our new Netlify Function
+    const response = await fetch("/.netlify/functions/generateCourse", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ topic, duration }),
+    });
 
-    const response = result.response;
-    const text = response.text();
+    if (!response.ok) {
+      throw new Error("Failed to fetch from function");
+    }
 
-    // 4. Clean and parse the JSON
-    // The API sometimes adds ```json ... ``` tags. Let's remove them.
-    const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-
-    // 5. Return the parsed JSON object
-    return JSON.parse(cleanedText);
+    // The function's body is the JSON string, so we parse it
+    const data = await response.json(); 
+    return data;
 
   } catch (error) {
-    console.error("Error generating course:", error);
-    // Return null or throw an error so the UI can react
+    console.error("Error calling Netlify function:", error);
     return null;
   }
 }

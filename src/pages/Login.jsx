@@ -1,15 +1,20 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 const Login = () => {
+  const navigate = useNavigate();
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
       // The signed-in user info.
       const user = result.user;
-      console.log("User signed in successfully");    } catch (error) {
+      console.log("User signed in successfully");
+      navigate('/dashboard'); // Redirect to dashboard
+    } catch (error) {
       // Handle Errors here.
       console.error("Error during Google sign-in:", error);
     }

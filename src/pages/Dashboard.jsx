@@ -2,9 +2,9 @@ import React from 'react';
 
 const Dashboard = () => {
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 text-white p-4">
+      <div className="hidden md:block md:w-64 bg-gray-800 text-white p-4">
         <h2 className="text-2xl font-bold mb-4">My Courses</h2>
         {/* Sidebar content goes here */}
       </div>
@@ -14,8 +14,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
         {/* Main content goes here */}
       </div>
-    </div>
-  );
+    </div>  );
 };
 
 export default Dashboard;

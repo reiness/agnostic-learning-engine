@@ -9,8 +9,7 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider);
       // The signed-in user info.
       const user = result.user;
-      console.log("User signed in:", user.displayName);
-    } catch (error) {
+      console.log("User signed in successfully");    } catch (error) {
       // Handle Errors here.
       console.error("Error during Google sign-in:", error);
     }

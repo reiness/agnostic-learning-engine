@@ -5,10 +5,10 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 // We'll use the fast 'flash' model for this
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-const FLASHCARD_GENERATOR_PROMPT = `You are a helpful study assistant. A user will provide you with a block of learning material. Your task is to generate 5-10 question-and-answer flashcards based *only* on the provided text.
-
+const FLASHCARD_GENERATOR_PROMPT = `You are a helpful study assistant. A user will provide you with a block of learning material. Your task is to generate 5-10 question-and-answer flashcards based *only* on the provided text. Each question and answer should be concise, ideally under 100 characters.
+ 
 The output *must* be a single, valid JSON object, with no other text or markdown tags before or after it.
-
+ 
 The JSON format must be strictly this:
 {
   "cards": [

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '../components/MainLayout';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import Spinner from '../components/Spinner';
 import AnimatedPage from '../components/AnimatedPage';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const [user] = useAuthState(auth);
@@ -12,6 +14,7 @@ const Profile = () => {
     coursesInProgress: 0,
     coursesCompleted: 0,
     modulesCompleted: 0,
+    credits: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -19,6 +22,10 @@ const Profile = () => {
     const fetchUserStats = async () => {
       if (user) {
         try {
+          const userRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userRef);
+          const credits = userDoc.exists() ? userDoc.data().credits : 0;
+
           const q = query(collection(db, "courses"), where("userId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           let coursesInProgress = 0;
@@ -37,7 +44,7 @@ const Profile = () => {
               coursesInProgress++;
             }
           }
-          setStats({ coursesInProgress, coursesCompleted, modulesCompleted });
+          setStats({ coursesInProgress, coursesCompleted, modulesCompleted, credits });
         } catch (error) {
           console.error("Error fetching user stats:", error);
         } finally {
@@ -83,8 +90,17 @@ const Profile = () => {
                 <h3 className="text-5xl font-bold text-yellow-400">{stats.modulesCompleted}</h3>
                 <p className="text-xl text-muted-foreground mt-2">Modules Completed</p>
               </div>
+              <div className="bg-card text-card-foreground p-6 rounded-xl shadow-lg text-center">
+                <h3 className="text-5xl font-bold text-blue-400">{stats.credits}</h3>
+                <p className="text-xl text-muted-foreground mt-2">Credits Remaining</p>
+              </div>
             </div>
           )}
+          <div className="mt-8">
+            <Link to="/deleted-courses">
+              <Button variant="outline">View Deleted Courses</Button>
+            </Link>
+          </div>
         </div>
       </MainLayout>
     </AnimatedPage>

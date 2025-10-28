@@ -55,13 +55,82 @@ export default {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+  				     flashcard: {
+  				         '1': 'hsl(var(--flashcard-1))',
+  				         '2': 'hsl(var(--flashcard-2))',
+  				         '3': 'hsl(var(--flashcard-3))',
+  				         '4': 'hsl(var(--flashcard-4))',
+  				         'red': 'hsl(var(--flashcard-red))',
+  				     }
   		},
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		}
+  			borderRadius: {
+  				lg: 'var(--radius)',
+  				md: 'calc(var(--radius) - 2px)',
+  				sm: 'calc(var(--radius) - 4px)'
+  			},
+  	     typography: ({ theme }) => ({
+  	       DEFAULT: {
+  	         css: {
+  	           color: theme('colors.foreground'),
+  	           'h1, h2, h3, h4': {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           p: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           li: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           blockquote: {
+  	             color: theme('colors.muted-foreground'),
+  	           },
+  	           code: {
+  	             color: theme('colors.foreground'),
+  	             backgroundColor: theme('colors.secondary'),
+  	           },
+  	           strong: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           a: {
+  	             color: theme('colors.primary'),
+  	             '&:hover': {
+  	               color: theme('colors.primary-foreground'),
+  	             },
+  	           },
+  	         },
+  	       },
+  	       invert: {
+  	         css: {
+  	           color: theme('colors.foreground'),
+  	           'h1, h2, h3, h4': {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           p: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           li: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           blockquote: {
+  	             color: theme('colors.muted-foreground'),
+  	           },
+  	           code: {
+  	             color: theme('colors.foreground'),
+  	             backgroundColor: theme('colors.secondary'),
+  	           },
+  	           strong: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           a: {
+  	             color: theme('colors.primary'),
+  	             '&:hover': {
+  	               color: theme('colors.primary-foreground'),
+  	             },
+  	           },
+  	         },
+  	       },
+  	     }),
   	}
   },
   plugins: [

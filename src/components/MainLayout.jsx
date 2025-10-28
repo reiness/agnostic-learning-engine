@@ -10,7 +10,7 @@ const MainLayout = ({ sidebarContent, children }) => {
 
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
-      <div className={`fixed inset-y-0 left-0 z-30 w-72 bg-muted text-muted-foreground p-6 transition-all duration-300 ease-in-out transform ${isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0'} hidden md:block`}>
+      <div className={`fixed inset-y-0 left-0 z-30 w-72 bg-muted text-muted-foreground p-6 transition-all duration-300 ease-in-out transform ${isSidebarCollapsed ? '-translate-x-full w-0 p-0' : 'translate-x-0 w-72'} overflow-y-auto hidden md:block`}>
         {sidebarContent}
       </div>
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-0' : 'md:ml-72'}`}>

@@ -39,7 +39,7 @@ const Navbar = ({ toggleSidebar, isSidebarCollapsed }) => {
           <ChevronsLeft className={`transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
         </Button>
         <Link to="/dashboard" className="text-2xl font-bold">
-          Alea - Agnostic Learning Engine
+          Alea - Agnostic Learning Assistant
         </Link>
       </div>
       <div className="flex items-center space-x-4">

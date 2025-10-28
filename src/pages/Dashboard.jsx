@@ -1,130 +1,30 @@
-import React, { useState } from 'react';
-import { collection, addDoc, doc, writeBatch } from 'firebase/firestore';
-import { auth, db } from '../firebase.js';
-import { generateCourse } from '../services/gemini.js';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import MainLayout from '../components/MainLayout';
+import CourseCreationForm from '../components/CourseCreationForm';
+import CourseList from '../components/CourseList';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../firebase';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const [user] = useAuthState(auth);
-  const [topic, setTopic] = useState('');
-  const [duration, setDuration] = useState('7_days'); // Default to 7 Days
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleGenerateCourse = async (e) => {
-    e.preventDefault(); // Prevent default form submission behavior
-    setIsLoading(true);
+  const sidebarContent = <CourseList />;
 
-    if (!user) {
-      console.error("User not logged in.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const courseData = await generateCourse(topic, duration);
-
-      if (!courseData) {
-        console.error("Failed to generate course data, received null.");
-        alert("Error: Course generation failed. The API returned no data. Please try again.");
-        setIsLoading(false); // We must stop here
-        return; // And exit the function
-      }
-      
-      if (!courseData.title || !Array.isArray(courseData.dailyModules)) {
-        console.error("Invalid course data structure received from API:", courseData);
-        alert("Error: The generated course data was incomplete. Please try again.");
-        setIsLoading(false);
-        return;
-      }
-
-      const coursesRef = collection(db, 'courses');
-      const newCourseDocRef = await addDoc(coursesRef, {
-        userId: user.uid,
-        title: courseData.title,
-        durationDays: parseInt(duration.replace('_days', '')),
-        originalPrompt: topic,
-        status: 'active',
-        createdAt: new Date()
-      });
-
-      const newCourseId = newCourseDocRef.id;
-      const batch = writeBatch(db);
-
-      courseData.dailyModules.forEach(module => {
-        const day = module.day.toString();
-        const moduleRef = doc(db, 'courses', newCourseId, 'modules', day);
-        batch.set(moduleRef, {
-          title: module.title,
-          description: module.description,
-          learningMaterial: "",
-          isCompleted: false
-        });
-      });
-
-      await batch.commit();
-      navigate(`/course/${newCourseId}`);
-
-    } catch (error) {
-      console.error('Error generating course:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
   return (
-    <div className="flex h-screen w-screen">
-      {/* Sidebar */}
-      <div className="hidden md:block md:w-64 bg-gray-800 text-white p-4">
-        <h2 className="text-2xl font-bold mb-4">My Courses</h2>
-        {/* Sidebar content goes here */}
+    <MainLayout sidebarContent={sidebarContent}>
+      <div className="space-y-8">
+        <header>
+          <h1 className="text-4xl font-bold text-white">
+            Welcome back, {user ? user.displayName : 'Learner'}!
+          </h1>
+          <p className="text-lg text-gray-400 mt-2">
+            Ready to start a new learning adventure?
+          </p>
+        </header>
+        <CourseCreationForm />
       </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 bg-gray-100 p-4">
-        <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-        <form onSubmit={handleGenerateCourse} className="mt-8 p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4">Create a New Course</h2>
-          <div className="mb-4">
-            <label htmlFor="courseTopic" className="block text-gray-700 text-sm font-bold mb-2">
-              Course Topic & Needs
-            </label>
-            <textarea
-              id="courseTopic"
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows="5"
-              placeholder="e.g., Learn advanced React hooks, improve state management in large applications, build a full-stack application with Node.js and Express."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              disabled={isLoading}
-            ></textarea>
-          </div>
-          <div className="mb-6">
-            <label htmlFor="duration" className="block text-gray-700 text-sm font-bold mb-2">
-              Duration
-            </label>
-            <select
-              id="duration"
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              disabled={isLoading}
-            >
-              <option value="7_days">7 Days</option>
-              <option value="14_days">14 Days</option>
-              <option value="30_days">30 Days</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Generating course...' : 'Generate My Course'}
-          </button>
-        </form>
-      </div>
-    </div>  );
+    </MainLayout>
+  );
 };
 
 export default Dashboard;

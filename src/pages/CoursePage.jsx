@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import ReactMarkdown from 'react-markdown';
+import MainLayout from '../components/MainLayout';
+import Spinner from '../components/Spinner';
 
 const CoursePage = () => {
   const { courseId } = useParams();
@@ -16,75 +18,51 @@ const CoursePage = () => {
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        // Fetch main course document
         const courseDocRef = doc(db, "courses", courseId);
         const courseDocSnap = await getDoc(courseDocRef);
-
         if (courseDocSnap.exists()) {
           setCourseTitle(courseDocSnap.data().title);
         } else {
-          console.error("No such course document!");
           setCourseTitle("Course Not Found");
-          return;
         }
-
-        // Fetch modules sub-collection
         const modulesCollectionRef = collection(db, "courses", courseId, "modules");
         const modulesQuery = query(modulesCollectionRef);
         const modulesSnapshot = await getDocs(modulesQuery);
-
         const fetchedModules = [];
         modulesSnapshot.docs.forEach((doc) => {
-          // 'doc.id' is the day number (e.g., "1", "2")
           fetchedModules.push({ id: doc.id, ...doc.data() });
         });
-
-        // We must manually sort the modules, because Firestore will
-        // order them as strings ("1", "10", "2", ...). This fixes it.
         fetchedModules.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-
         setModules(fetchedModules);
-        
-        // Also, update the default selected module to show a placeholder
-        // instead of the 'Day 1' object, which might not be loaded yet.
         setSelectedModule({
           title: "Select a module",
           learningMaterial: "Please select a module from the list to view its content."
         });
-
       } catch (error) {
         console.error("Error fetching course data:", error);
       }
     };
-
     fetchCourseData();
   }, [courseId]);
 
   const handleGenerateFlashcards = async () => {
+    if (!selectedModule?.learningMaterial) {
+      alert("Please generate the lesson material first.");
+      return;
+    }
     setIsFlashcardLoading(true);
     try {
-      if (!selectedModule?.learningMaterial) {
-        alert("Please generate the lesson material first.");
-        return;
-      }
-
       const response = await fetch("/.netlify/functions/generateFlashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lessonMaterial: selectedModule.learningMaterial })
       });
-
-      const data = await response.json(); // This is { cards: [...] }
-      const newFlashcards = data.cards;
-
+      const data = await response.json();
       const flashcardRef = doc(db, "courses", courseId, "flashcards", selectedModule.id);
-      await setDoc(flashcardRef, { cards: newFlashcards });
-
-      setFlashcards(newFlashcards);
-
+      await setDoc(flashcardRef, { cards: data.cards });
+      setFlashcards(data.cards);
     } catch (error) {
       console.error("Error generating flashcards:", error);
-      alert("Failed to generate flashcards. Please try again.");
     } finally {
       setIsFlashcardLoading(false);
     }
@@ -92,41 +70,30 @@ const CoursePage = () => {
 
   const handleMarkAsComplete = async () => {
     if (!selectedModule) return;
-
     try {
       const moduleRef = doc(db, "courses", courseId, "modules", selectedModule.id);
       await updateDoc(moduleRef, { isCompleted: true });
-
+      const updatedModules = modules.map(m => m.id === selectedModule.id ? { ...m, isCompleted: true } : m);
+      setModules(updatedModules);
       setSelectedModule({ ...selectedModule, isCompleted: true });
-      setModules(modules.map(m => m.id === selectedModule.id ? { ...m, isCompleted: true } : m));
       alert("Module marked as complete!");
     } catch (error) {
       console.error("Error marking module as complete:", error);
-      alert("Failed to mark module as complete. Please try again.");
     }
   };
 
   const handleModuleClick = async (module) => {
-    // --- Progression Logic Start ---
     const dayNumber = parseInt(module.id);
-
     if (dayNumber > 1) {
-      // Find the previous module in our state
       const previousDayId = (dayNumber - 1).toString();
       const previousModule = modules.find(m => m.id === previousDayId);
-
-      // Check if the previous module is complete
       if (!previousModule || !previousModule.isCompleted) {
         alert(`You must complete 'Day ${previousDayId}: ${previousModule.title}' before starting this module.`);
-        return; // Stop the function from running
+        return;
       }
     }
-    // --- Progression Logic End ---
-
     setSelectedModule(module);
-    setFlashcards([]); // Clear flashcards when a new module is selected
-
-    // Fetch flashcards if they exist for this module
+    setFlashcards([]);
     try {
       const flashcardDocRef = doc(db, "courses", courseId, "flashcards", module.id);
       const flashcardDocSnap = await getDoc(flashcardDocRef);
@@ -136,11 +103,7 @@ const CoursePage = () => {
     } catch (error) {
       console.error("Error fetching flashcards:", error);
     }
-
-    if (module.learningMaterial && module.learningMaterial !== "") {
-      return;
-    }
-
+    if (module.learningMaterial) return;
     setIsLessonLoading(true);
     try {
       const response = await fetch("/.netlify/functions/generateLesson", {
@@ -152,103 +115,85 @@ const CoursePage = () => {
           moduleDescription: module.description
         })
       });
-
       const data = await response.json();
       const newMaterial = data.lessonMaterial;
-
       const moduleRef = doc(db, "courses", courseId, "modules", module.id);
-      await updateDoc(moduleRef, {
-        learningMaterial: newMaterial
-      });
-
+      await updateDoc(moduleRef, { learningMaterial: newMaterial });
+      const updatedModules = modules.map(m => m.id === module.id ? { ...m, learningMaterial: newMaterial } : m);
+      setModules(updatedModules);
       setSelectedModule({ ...module, learningMaterial: newMaterial });
-      setModules(modules.map(m => m.id === module.id ? { ...m, learningMaterial: newMaterial } : m));
-
     } catch (error) {
       console.error("Error generating lesson material:", error);
-      alert("Failed to generate lesson material. Please try again.");
     } finally {
       setIsLessonLoading(false);
     }
   };
 
-  return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="hidden md:block md:w-64 bg-gray-800 text-white p-4">
-        <h2 className="text-2xl font-bold mb-4">{courseTitle}</h2>
-        <nav>
-          {modules.map((module) => (
-            <button
-              key={module.id}
-              className={`block w-full text-left p-2 rounded-md mb-2 ${
-                selectedModule?.id === module.id ? 'bg-blue-600' : 'hover:bg-gray-700'
-              }`}
-              onClick={() => handleModuleClick(module)}
-            >
-              Day {module.id}: {module.title}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 bg-gray-100 p-4">
-        {selectedModule ? (
-          <>
-            <div className="prose max-w-none p-4">
-              <h1 className="text-3xl font-bold mb-4">{selectedModule.title}</h1>
-              {isLessonLoading ? (
-                <p>Generating lesson, please wait...</p>
-              ) : (
-                <ReactMarkdown>{selectedModule?.learningMaterial}</ReactMarkdown>
-              )}
-            </div>
-            {/* Buttons and Flashcard Viewer */}
-            <div className="mt-4 p-4 border-t">
-              <button
-                onClick={handleGenerateFlashcards}
-                className="bg-blue-600 text-white p-2 rounded-md mr-4 hover:bg-blue-700"
-                disabled={isFlashcardLoading || !selectedModule?.learningMaterial}
-              >
-                {isFlashcardLoading ? 'Generating Flashcards...' : "Generate Today's Flashcards"}
-              </button>
-              
-              <button
-                onClick={handleMarkAsComplete}
-                className="bg-green-600 text-white p-2 rounded-md hover:bg-green-700"
-                disabled={selectedModule?.isCompleted}
-              >
-                {selectedModule?.isCompleted ? 'Module Completed ✅' : 'Mark as Complete'}
-              </button>
-            </div>
-
-            <FlashcardViewer cards={flashcards} />
-          </>
-        ) : (
-          <p>Select a module to view its content.</p>
-        )}
-      </div>
+  const sidebarContent = (
+    <div>
+      <h2 className="text-2xl font-bold mb-6 text-white">{courseTitle}</h2>
+      <nav className="space-y-3">
+        {modules.map((module) => (
+          <button
+            key={module.id}
+            onClick={() => handleModuleClick(module)}
+            className={`w-full text-left p-3 rounded-lg transition duration-200 flex items-center justify-between ${selectedModule?.id === module.id ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700'}`}
+          >
+            <span>Day {module.id}: {module.title}</span>
+            {module.isCompleted && <span className="text-green-400">✓</span>}
+          </button>
+        ))}
+      </nav>
     </div>
+  );
+
+  return (
+    <MainLayout sidebarContent={sidebarContent}>
+      {selectedModule ? (
+        <div className="bg-gray-800 p-8 rounded-xl shadow-2xl">
+          <h1 className="text-4xl font-bold text-white mb-6">{selectedModule.title}</h1>
+          <div className="prose prose-invert max-w-none">
+            {isLessonLoading ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
+          </div>
+          <div className="mt-8 pt-6 border-t border-gray-700 flex items-center space-x-4">
+            <button
+              onClick={handleGenerateFlashcards}
+              className="py-2 px-5 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 disabled:opacity-50"
+              disabled={isFlashcardLoading || !selectedModule.learningMaterial}
+            >
+              {isFlashcardLoading ? 'Generating...' : 'Generate Flashcards'}
+            </button>
+            <button
+              onClick={handleMarkAsComplete}
+              className="py-2 px-5 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-300 disabled:opacity-50"
+              disabled={selectedModule.isCompleted}
+            >
+              {selectedModule.isCompleted ? 'Completed ✓' : 'Mark as Complete'}
+            </button>
+          </div>
+          <FlashcardViewer cards={flashcards} />
+        </div>
+      ) : (
+        <p>Select a module to begin.</p>
+      )}
+    </MainLayout>
   );
 };
 
 const FlashcardViewer = ({ cards }) => {
   const [flippedCard, setFlippedCard] = useState(null);
-
   if (cards.length === 0) return null;
-
   return (
     <div className="mt-8">
-      <h3 className="text-2xl font-bold mb-4">Flashcards</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <h3 className="text-3xl font-bold text-white mb-6">Flashcards</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {cards.map((card, index) => (
           <div
             key={index}
-            className="p-4 border rounded-lg shadow-md cursor-pointer h-32 flex items-center justify-center text-center"
+            className="p-6 bg-gray-700 rounded-lg shadow-lg cursor-pointer min-h-[150px] flex items-center justify-center text-center transition-transform duration-300 transform hover:scale-105"
             onClick={() => setFlippedCard(flippedCard === index ? null : index)}
           >
-            {flippedCard === index ? card.a : card.q}
+            <p className="text-lg">{flippedCard === index ? card.a : card.q}</p>
           </div>
         ))}
       </div>

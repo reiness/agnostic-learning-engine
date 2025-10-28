@@ -9,25 +9,36 @@ const Login = () => {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      // The signed-in user info.
-      const user = result.user;
-      console.log("User signed in successfully");
-      navigate('/dashboard'); // Redirect to dashboard
+      await signInWithPopup(auth, provider);
+      navigate('/dashboard');
     } catch (error) {
-      // Handle Errors here.
       console.error("Error during Google sign-in:", error);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen w-screen bg-gray-900">
-      <button
-        onClick={signInWithGoogle}
-        className="px-6 py-3 bg-white text-gray-900 font-bold rounded-lg shadow-md hover:bg-gray-200 transition duration-300"
-      >
-        Sign in with Google
-      </button>
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="text-center p-10 max-w-md mx-auto">
+        <header className="mb-8">
+          <h1 className="text-5xl font-bold text-white mb-2">
+            Welcome to Agnostic-ALE
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Your personalized AI-powered learning experience.
+          </p>
+        </header>
+        <main>
+          <button
+            onClick={signInWithGoogle}
+            className="w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105"
+          >
+            Sign in with Google
+          </button>
+        </main>
+        <footer className="mt-12 text-gray-500 text-sm">
+          <p>&copy; {new Date().getFullYear()} Agnostic-ALE. All rights reserved.</p>
+        </footer>
+      </div>
     </div>
   );
 };

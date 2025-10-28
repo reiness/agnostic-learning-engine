@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { auth } from '../firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { checkAndResetCredits } from '../services/credits';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -10,7 +11,8 @@ const Login = () => {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      await checkAndResetCredits(result.user.uid);
       navigate('/dashboard');
     } catch (error) {
       console.error("Error during Google sign-in:", error);

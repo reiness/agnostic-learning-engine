@@ -16,6 +16,7 @@ const CoursePage = () => {
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState(null);
   const [isLessonLoading, setIsLessonLoading] = useState(false);
+  const [isCourseLoading, setIsCourseLoading] = useState(true);
   const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
   const [flashcards, setFlashcards] = useState([]);
  
@@ -38,12 +39,10 @@ const CoursePage = () => {
         });
         fetchedModules.sort((a, b) => parseInt(a.id) - parseInt(b.id));
         setModules(fetchedModules);
-        setSelectedModule({
-          title: "Select a module",
-          learningMaterial: "Please select a module from the list to view its content."
-        });
       } catch (error) {
         console.error("Error fetching course data:", error);
+      } finally {
+        setIsCourseLoading(false);
       }
     };
     fetchCourseData();
@@ -134,6 +133,7 @@ const CoursePage = () => {
       setSelectedModule({ ...module, learningMaterial: newMaterial });
     } catch (error) {
       console.error("Error generating lesson material:", error);
+      alert("Error: Failed to generate module content. Please try again later.");
     } finally {
       setIsLessonLoading(false);
     }
@@ -148,9 +148,9 @@ const CoursePage = () => {
             key={module.id}
             onClick={() => handleModuleClick(module)}
             variant={selectedModule?.id === module.id ? 'default' : 'ghost'}
-            className="w-full justify-between overflow-hidden whitespace-nowrap text-ellipsis"
+            className="w-full justify-start text-wrap break-words h-auto py-2 text-left"
           >
-            <span className="overflow-hidden whitespace-nowrap text-ellipsis">Day {module.id}: {module.title}</span>
+            <span className="text-wrap break-words">Day {module.id}: {module.title}</span>
             {module.isCompleted && <Icon name="check" className="text-green-400 flex-shrink-0 ml-2" />}
           </Button>
         ))}
@@ -161,14 +161,21 @@ const CoursePage = () => {
   return (
     <AnimatedPage>
       <MainLayout sidebarContent={sidebarContent}>
-        {selectedModule ? (
+        {isCourseLoading ? (
+          <div className="text-center">
+            <Spinner />
+            <p className="mt-4 text-muted-foreground">Loading course...</p>
+          </div>
+        ) : (
           <div className="bg-card p-8 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-start mb-8">
               <div>
                 <h2 className="text-3xl font-bold text-foreground mb-2">{courseTitle}</h2>
-                <div className="w-full bg-muted rounded-full h-2.5">
-                  <div className="bg-primary h-2.5 rounded-full" style={{ width: `${(modules.filter(m => m.isCompleted).length / modules.length) * 100}%` }}></div>
-                </div>
+                {modules.length > 0 && (
+                  <div className="w-full bg-muted rounded-full h-2.5">
+                    <div className="bg-primary h-2.5 rounded-full" style={{ width: `${(modules.filter(m => m.isCompleted).length / modules.length) * 100}%` }}></div>
+                  </div>
+                )}
               </div>
               <Button
                 onClick={async () => {
@@ -187,31 +194,64 @@ const CoursePage = () => {
                 Delete Course
               </Button>
             </div>
-            <h1 className="text-4xl font-bold text-foreground mb-6">{selectedModule.title}</h1>
-            <div className="prose dark:prose-invert max-w-none">
-              {isLessonLoading ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
-            </div>
-            <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
-              <Button
-                onClick={handleGenerateFlashcards}
-                disabled={isFlashcardLoading || !selectedModule.learningMaterial}
-              >
-                {isFlashcardLoading ? 'Generating...' : 'Generate Flashcards'}
-              </Button>
-              <Button
-                onClick={handleMarkAsComplete}
-                variant="secondary"
-                disabled={selectedModule.isCompleted}
-              >
-                {selectedModule.isCompleted ? 'Completed ✓' : 'Mark as Complete'}
-              </Button>
-            </div>
-            <FlashcardViewer cards={flashcards} />
-          </div>
-        ) : (
-          <div className="text-center">
-            <Spinner />
-            <p className="mt-4 text-muted-foreground">Loading course...</p>
+            {isCourseLoading ? (
+              <div className="text-center">
+                <Spinner />
+                <p className="mt-4 text-muted-foreground">Loading course...</p>
+              </div>
+            ) : selectedModule && selectedModule.learningMaterial ? (
+              <>
+                <h1 className="text-4xl font-bold text-foreground mb-6">{selectedModule.title}</h1>
+                <div className="prose dark:prose-invert max-w-none">
+                  {isLessonLoading ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
+                </div>
+                <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
+                  <Button
+                    onClick={handleGenerateFlashcards}
+                    disabled={isFlashcardLoading || !selectedModule || !selectedModule.learningMaterial}
+                  >
+                    {isFlashcardLoading ? 'Generating...' : 'Generate Flashcards'}
+                  </Button>
+                  <Button
+                    onClick={handleMarkAsComplete}
+                    variant="secondary"
+                    disabled={!selectedModule || !selectedModule.learningMaterial || selectedModule.isCompleted}
+                  >
+                    {selectedModule.isCompleted ? 'Completed ✓' : 'Mark as Complete'}
+                  </Button>
+                </div>
+                <FlashcardViewer cards={flashcards} />
+              </>
+            ) : (
+              <div className="text-center">
+                {selectedModule && isLessonLoading ? (
+                  <>
+                    <Spinner />
+                    <p className="mt-4 text-muted-foreground">Please wait while we are cooking your module</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-4 text-muted-foreground">Select a module</p>
+                    <p className="text-muted-foreground">Please select a module from the list to view its content.</p>
+                    <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
+                      <Button
+                        onClick={handleGenerateFlashcards}
+                        disabled={true}
+                      >
+                        Generate Flashcards
+                      </Button>
+                      <Button
+                        onClick={handleMarkAsComplete}
+                        variant="secondary"
+                        disabled={true}
+                      >
+                        Mark as Complete
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </MainLayout>

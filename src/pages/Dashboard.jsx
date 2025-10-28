@@ -69,7 +69,7 @@ const Dashboard = () => {
           {courses.map(course => (
             <li key={course.id}>
               <Link to={`/course/${course.id}`}>
-                <Button variant="ghost" className="w-full justify-start overflow-hidden whitespace-nowrap text-ellipsis">
+                <Button variant="ghost" className="w-full justify-start text-wrap break-words h-auto py-2 text-left">
                   {course.title}
                 </Button>
               </Link>

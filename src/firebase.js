@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, doc, deleteDoc, getDocs, collection, writeBatch } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -36,4 +36,23 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { auth, db };
+const deleteCourse = async (courseId) => {
+  try {
+    // Delete subcollections first
+    const modulesRef = collection(db, "courses", courseId, "modules");
+    const modulesSnapshot = await getDocs(modulesRef);
+    const batch = writeBatch(db);
+    modulesSnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    // Then delete the course document
+    await deleteDoc(doc(db, "courses", courseId));
+  } catch (error) {
+    console.error("Error deleting course:", error);
+    throw error; // Re-throw the error to be caught by the caller
+  }
+};
+
+export { auth, db, deleteCourse };

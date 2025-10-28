@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { auth } from '../firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
@@ -17,26 +18,23 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-      <div className="text-center p-10 max-w-md mx-auto">
+    <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
+      <div className="text-center p-10 max-w-lg mx-auto bg-card text-card-foreground rounded-2xl shadow-2xl">
         <header className="mb-8">
-          <h1 className="text-5xl font-bold text-white mb-2">
-            Welcome to Agnostic-ALE
+          <h1 className="text-5xl font-bold mb-2">
+            Alea
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-lg text-muted-foreground">
             Your personalized AI-powered learning experience.
           </p>
         </header>
         <main>
-          <button
-            onClick={signInWithGoogle}
-            className="w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105"
-          >
+          <Button onClick={signInWithGoogle} className="w-full">
             Sign in with Google
-          </button>
+          </Button>
         </main>
-        <footer className="mt-12 text-gray-500 text-sm">
-          <p>&copy; {new Date().getFullYear()} Agnostic-ALE. All rights reserved.</p>
+        <footer className="mt-12 text-sm text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Alea. All rights reserved.</p>
         </footer>
       </div>
     </div>

@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import { collection, addDoc, doc, writeBatch } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { db, auth } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useNavigate } from 'react-router-dom';
@@ -58,45 +68,34 @@ const CourseCreationForm = () => {
   };
 
   return (
-    <form onSubmit={handleGenerateCourse} className="p-8 bg-gray-800 rounded-xl shadow-2xl space-y-6">
-      <h2 className="text-3xl font-bold text-white">Create a New Course</h2>
-      <div>
-        <label htmlFor="courseTopic" className="block text-lg font-medium text-gray-300 mb-2">
-          What do you want to learn?
-        </label>
-        <textarea
+    <form onSubmit={handleGenerateCourse} className="p-8 bg-card text-card-foreground rounded-xl shadow-2xl space-y-6">
+      <h2 className="text-3xl font-bold">Create a New Course</h2>
+      <div className="space-y-2">
+        <Label htmlFor="courseTopic">What do you want to learn?</Label>
+        <Textarea
           id="courseTopic"
-          className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          rows="5"
           placeholder="e.g., Advanced TypeScript for modern web development..."
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           disabled={isLoading}
         />
       </div>
-      <div>
-        <label htmlFor="duration" className="block text-lg font-medium text-gray-300 mb-2">
-          How long do you have?
-        </label>
-        <select
-          id="duration"
-          className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          disabled={isLoading}
-        >
-          <option value="7_days">7 Days</option>
-          <option value="14_days">14 Days</option>
-          <option value="30_days">30 Days</option>
-        </select>
+      <div className="space-y-2">
+        <Label htmlFor="duration">How long do you have?</Label>
+        <Select value={duration} onValueChange={setDuration} disabled={isLoading}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a duration" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7_days">7 Days</SelectItem>
+            <SelectItem value="14_days">14 Days</SelectItem>
+            <SelectItem value="30_days">30 Days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <button
-        type="submit"
-        className="w-full py-3 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:scale-100"
-        disabled={isLoading}
-      >
+      <Button type="submit" disabled={isLoading} className="w-full">
         {isLoading ? 'Generating Your Course...' : 'Generate My Course'}
-      </button>
+      </Button>
     </form>
   );
 };

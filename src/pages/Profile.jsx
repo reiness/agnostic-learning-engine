@@ -5,6 +5,8 @@ import { auth, db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Spinner from '../components/Spinner';
 import AnimatedPage from '../components/AnimatedPage';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const [user] = useAuthState(auth);
@@ -85,6 +87,11 @@ const Profile = () => {
               </div>
             </div>
           )}
+          <div className="mt-8">
+            <Link to="/deleted-courses">
+              <Button variant="outline">View Deleted Courses</Button>
+            </Link>
+          </div>
         </div>
       </MainLayout>
     </AnimatedPage>

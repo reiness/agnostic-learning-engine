@@ -148,10 +148,10 @@ const CoursePage = () => {
             key={module.id}
             onClick={() => handleModuleClick(module)}
             variant={selectedModule?.id === module.id ? 'default' : 'ghost'}
-            className="w-full justify-between"
+            className="w-full justify-between overflow-hidden whitespace-nowrap text-ellipsis"
           >
-            <span>Day {module.id}: {module.title}</span>
-            {module.isCompleted && <Icon name="check" className="text-green-400" />}
+            <span className="overflow-hidden whitespace-nowrap text-ellipsis">Day {module.id}: {module.title}</span>
+            {module.isCompleted && <Icon name="check" className="text-green-400 flex-shrink-0 ml-2" />}
           </Button>
         ))}
       </nav>
@@ -188,7 +188,7 @@ const CoursePage = () => {
               </Button>
             </div>
             <h1 className="text-4xl font-bold text-foreground mb-6">{selectedModule.title}</h1>
-            <div className="prose dark:prose-invert max-w-none text-muted-foreground">
+            <div className="prose dark:prose-invert max-w-none">
               {isLessonLoading ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
             </div>
             <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">

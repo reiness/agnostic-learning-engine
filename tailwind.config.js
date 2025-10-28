@@ -61,7 +61,69 @@ export default {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+  	     typography: ({ theme }) => ({
+  	       DEFAULT: {
+  	         css: {
+  	           color: theme('colors.foreground'),
+  	           'h1, h2, h3, h4': {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           p: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           li: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           blockquote: {
+  	             color: theme('colors.muted-foreground'),
+  	           },
+  	           code: {
+  	             color: theme('colors.foreground'),
+  	             backgroundColor: theme('colors.secondary'),
+  	           },
+  	           strong: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           a: {
+  	             color: theme('colors.primary'),
+  	             '&:hover': {
+  	               color: theme('colors.primary-foreground'),
+  	             },
+  	           },
+  	         },
+  	       },
+  	       invert: {
+  	         css: {
+  	           color: theme('colors.foreground'),
+  	           'h1, h2, h3, h4': {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           p: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           li: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           blockquote: {
+  	             color: theme('colors.muted-foreground'),
+  	           },
+  	           code: {
+  	             color: theme('colors.foreground'),
+  	             backgroundColor: theme('colors.secondary'),
+  	           },
+  	           strong: {
+  	             color: theme('colors.foreground'),
+  	           },
+  	           a: {
+  	             color: theme('colors.primary'),
+  	             '&:hover': {
+  	               color: theme('colors.primary-foreground'),
+  	             },
+  	           },
+  	         },
+  	       },
+  	     }),
   	}
   },
   plugins: [

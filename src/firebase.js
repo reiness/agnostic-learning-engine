@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, doc, deleteDoc, getDocs, collection, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, getDoc, deleteDoc, getDocs, collection, writeBatch, serverTimestamp } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -36,23 +36,81 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+
 const deleteCourse = async (courseId) => {
   try {
-    // Delete subcollections first
+    const batch = writeBatch(db);
+
+    const courseRef = doc(db, "courses", courseId);
+    const courseDoc = await getDoc(courseRef);
+
+    if (!courseDoc.exists()) {
+      throw new Error("Course document does not exist!");
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("User not authenticated for course deletion.");
+    }
+
+    const deletedCourseRef = doc(db, "deleted_courses", courseId);
+    const courseData = courseDoc.data();
+    batch.set(deletedCourseRef, {
+      ...courseData,
+      userId: user.uid,
+      deletedAt: serverTimestamp(),
+    });
+
     const modulesRef = collection(db, "courses", courseId, "modules");
     const modulesSnapshot = await getDocs(modulesRef);
-    const batch = writeBatch(db);
-    modulesSnapshot.forEach((doc) => {
-      batch.delete(doc.ref);
+    modulesSnapshot.forEach((moduleDoc) => {
+      const newModuleRef = doc(db, "deleted_courses", courseId, "modules", moduleDoc.id);
+      batch.set(newModuleRef, moduleDoc.data());
+      batch.delete(moduleDoc.ref);
     });
-    await batch.commit();
 
-    // Then delete the course document
-    await deleteDoc(doc(db, "courses", courseId));
+    batch.delete(courseRef);
+
+    await batch.commit();
+    console.log("Course moved to deleted_courses successfully!");
   } catch (error) {
     console.error("Error deleting course:", error);
-    throw error; // Re-throw the error to be caught by the caller
+    throw error;
   }
 };
 
-export { auth, db, deleteCourse };
+const restoreCourse = async (courseId) => {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const deletedCourseRef = doc(db, "deleted_courses", courseId);
+      const deletedCourseDoc = await transaction.get(deletedCourseRef);
+
+      if (!deletedCourseDoc.exists()) {
+        throw new Error("Deleted course document does not exist!");
+      }
+
+      // 1. Create a new document in the 'courses' collection
+      const courseRef = doc(db, "courses", courseId);
+      const { deletedAt, userId, ...courseData } = deletedCourseDoc.data(); // Exclude deletedAt and userId
+      transaction.set(courseRef, courseData);
+
+      // 2. Move subcollections (e.g., 'modules')
+      const modulesRef = collection(db, "deleted_courses", courseId, "modules");
+      const modulesSnapshot = await getDocs(modulesRef);
+      modulesSnapshot.forEach((moduleDoc) => {
+        const newModuleRef = doc(db, "courses", courseId, "modules", moduleDoc.id);
+        transaction.set(newModuleRef, moduleDoc.data());
+        transaction.delete(moduleDoc.ref); // Delete the original module
+      });
+
+      // 3. Delete the document from the 'deleted_courses' collection
+      transaction.delete(deletedCourseRef);
+    });
+    console.log("Course restored successfully!");
+  } catch (error) {
+    console.error("Error restoring course:", error);
+    throw error;
+  }
+};
+
+export { auth, db, deleteCourse, restoreCourse };

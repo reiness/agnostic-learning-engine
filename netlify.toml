@@ -2,4 +2,10 @@
   functions = "netlify/functions"
 
 [functions."*"]
-  timeout = 90
+  timeout = 180
+
+[dev]
+  framework = "#custom"
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888

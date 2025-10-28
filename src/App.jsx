@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import CoursePage from './pages/CoursePage.jsx';
 import Profile from './pages/Profile.jsx';
+import DeletedCourses from './pages/DeletedCourses.jsx';
 import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/course/:courseId" element={<CoursePage />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/deleted-courses" element={<DeletedCourses />} />
           {/* Add future routes like /course/:id here */}
         </Route>
         

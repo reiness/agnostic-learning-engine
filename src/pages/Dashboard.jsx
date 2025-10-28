@@ -73,7 +73,7 @@ const Dashboard = () => {
     }
   };
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen w-screen">
       {/* Sidebar */}
       <div className="hidden md:block md:w-64 bg-gray-800 text-white p-4">
         <h2 className="text-2xl font-bold mb-4">My Courses</h2>

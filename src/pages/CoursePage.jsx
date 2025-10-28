@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, updateDoc, setDoc } from 'firebase/firestore';
 import { db, deleteCourse } from '../firebase.js';
@@ -8,7 +8,7 @@ import Spinner from '../components/Spinner';
 import Icon from '../components/Icon';
 import AnimatedPage from '../components/AnimatedPage';
 import { Button } from '@/components/ui/button'; // Import Button component
-
+ 
 const CoursePage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const CoursePage = () => {
   const [isLessonLoading, setIsLessonLoading] = useState(false);
   const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
   const [flashcards, setFlashcards] = useState([]);
-
+ 
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
@@ -48,7 +48,7 @@ const CoursePage = () => {
     };
     fetchCourseData();
   }, [courseId]);
-
+ 
   const handleGenerateFlashcards = async () => {
     if (!selectedModule?.learningMaterial) {
       alert("Please generate the lesson material first.");
@@ -75,7 +75,7 @@ const CoursePage = () => {
       setIsFlashcardLoading(false);
     }
   };
-
+ 
   const handleMarkAsComplete = async () => {
     if (!selectedModule) return;
     try {
@@ -89,7 +89,7 @@ const CoursePage = () => {
       console.error("Error marking module as complete:", error);
     }
   };
-
+ 
   const handleModuleClick = async (module) => {
     const dayNumber = parseInt(module.id);
     if (dayNumber > 1) {
@@ -138,7 +138,7 @@ const CoursePage = () => {
       setIsLessonLoading(false);
     }
   };
-
+ 
   const sidebarContent = (
     <div>
       <h2 className="text-2xl font-bold mb-6 text-foreground">{courseTitle}</h2>
@@ -157,7 +157,7 @@ const CoursePage = () => {
       </nav>
     </div>
   );
-
+ 
   return (
     <AnimatedPage>
       <MainLayout sidebarContent={sidebarContent}>
@@ -218,9 +218,10 @@ const CoursePage = () => {
     </AnimatedPage>
   );
 };
-
+ 
 const FlashcardViewer = ({ cards }) => {
   const [flippedCard, setFlippedCard] = useState(null);
+ 
   if (cards.length === 0) return null;
   return (
     <div className="mt-8">
@@ -229,14 +230,16 @@ const FlashcardViewer = ({ cards }) => {
         {cards.map((card, index) => (
           <div
             key={index}
-            className={`flashcard p-6 bg-card rounded-lg shadow-lg cursor-pointer min-h-[150px] flex items-center justify-center text-center ${flippedCard === index ? 'flipped' : ''}`}
+            className={`flashcard rounded-lg shadow-lg cursor-pointer min-h-[150px] flex items-center justify-center text-center ${flippedCard === index ? 'flipped' : ''}`}
             onClick={() => setFlippedCard(flippedCard === index ? null : index)}
           >
-            <div className="front">
-              <p className="text-lg text-foreground">{card.q}</p>
+            <div className={`front ${index % 2 === 0 ? 'bg-flashcard-4' : 'bg-flashcard-red'}`}>
+              {/* We changed text-lg to text-base and break-words to break-all */}
+              <p className="text-base text-foreground w-full p-4 text-center break-all">{card.q}</p>
             </div>
-            <div className="back">
-              <p className="text-lg text-foreground">{card.a}</p>
+            <div className={`back bg-flashcard-2`}>
+              {/* We changed text-lg to text-base and break-words to break-all */}
+              <p className="text-base text-foreground w-full p-4 text-center break-all">{card.a}</p>
             </div>
           </div>
         ))}
@@ -244,5 +247,4 @@ const FlashcardViewer = ({ cards }) => {
     </div>
   );
 };
-
 export default CoursePage;

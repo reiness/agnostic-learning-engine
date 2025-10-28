@@ -55,13 +55,20 @@ export default {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+  				     flashcard: {
+  				         '1': 'hsl(var(--flashcard-1))',
+  				         '2': 'hsl(var(--flashcard-2))',
+  				         '3': 'hsl(var(--flashcard-3))',
+  				         '4': 'hsl(var(--flashcard-4))',
+  				         'red': 'hsl(var(--flashcard-red))',
+  				     }
   		},
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		},
+  			borderRadius: {
+  				lg: 'var(--radius)',
+  				md: 'calc(var(--radius) - 2px)',
+  				sm: 'calc(var(--radius) - 4px)'
+  			},
   	     typography: ({ theme }) => ({
   	       DEFAULT: {
   	         css: {

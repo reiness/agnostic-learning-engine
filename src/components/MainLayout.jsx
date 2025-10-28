@@ -1,16 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Navbar from './Navbar';
 
 const MainLayout = ({ sidebarContent, children }) => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
   return (
-    <div className="flex h-screen w-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="hidden md:block md:w-72 bg-gray-900 text-white p-6">
+    <div className="flex h-screen w-screen bg-background text-foreground">
+      <div className={`fixed inset-y-0 left-0 z-30 w-72 bg-muted text-muted-foreground p-6 transition-all duration-300 ease-in-out transform ${isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0'} hidden md:block`}>
         {sidebarContent}
       </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {children}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'md:ml-0' : 'md:ml-72'}`}>
+        <Navbar toggleSidebar={toggleSidebar} isSidebarCollapsed={isSidebarCollapsed} />
+        <main className="flex-1 p-8 overflow-y-auto bg-background">
+          {children}
+        </main>
       </div>
     </div>
   );

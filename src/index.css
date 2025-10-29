@@ -101,6 +101,19 @@ body {
 
 
 
+.glass-morphism-navbar {
+  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.15); /* Light theme default */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  border-radius: 10px; /* Optional: for rounded corners */
+}
+
+.dark .glass-morphism-navbar {
+  background-color: rgba(0, 0, 0, 0.3); /* Dark theme adjustment */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 @layer base {
   * {
     @apply border-border;

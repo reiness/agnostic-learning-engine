@@ -4,6 +4,7 @@ import { db, auth } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { Link } from 'react-router-dom';
 import Spinner from './Spinner';
+import { Button } from '@/components/ui/button';
 
 const CourseList = () => {
   const [user] = useAuthState(auth);
@@ -35,22 +36,21 @@ const CourseList = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6 text-white">My Courses</h2>
+      <h2 className="text-2xl font-bold mb-6">My Courses</h2>
       {courses.length > 0 ? (
         <ul className="space-y-3">
           {courses.map(course => (
             <li key={course.id}>
-              <Link
-                to={`/course/${course.id}`}
-                className="block p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition duration-200"
-              >
-                {course.title}
+              <Link to={`/course/${course.id}`}>
+                <Button variant="ghost" className="w-full justify-start text-wrap break-words h-auto py-2 text-left">
+                  {course.title}
+                </Button>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-gray-400">You haven't created any courses yet.</p>
+        <p className="text-muted-foreground">You haven't created any courses yet.</p>
       )}
     </div>
   );

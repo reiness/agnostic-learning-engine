@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import AnimatedPage from '../components/AnimatedPage';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import CourseList from '../components/CourseList';
 
 const Profile = () => {
   const [user] = useAuthState(auth);
@@ -55,9 +56,13 @@ const Profile = () => {
     fetchUserStats();
   }, [user]);
 
+  const sidebarContent = (
+    <CourseList />
+  );
+
   return (
     <AnimatedPage>
-      <MainLayout>
+      <MainLayout sidebarContent={sidebarContent}>
         <div className="space-y-8">
           <header className="flex items-center space-x-6">
             {user && (
@@ -72,7 +77,7 @@ const Profile = () => {
                 {user ? user.displayName : 'Learner'}'s Profile
               </h1>
               <p className="text-lg text-muted-foreground mt-2">
-                Your learning journey at a glance.
+                Date Joined: {user ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
               </p>
             </div>
           </header>

@@ -12,6 +12,17 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 
+const formatDate = (timestamp) => {
+  if (!timestamp) return "N/A";
+  // Firestore Timestamp objects have a toDate() method
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
 const Dashboard = () => {
   const [user] = useAuthState(auth);
   const [courses, setCourses] = useState([]);
@@ -57,7 +68,7 @@ const Dashboard = () => {
           // Optionally, show an error message to the user
           setDeletingCourseId(null); // Reset animation state on error
         }
-      }, 300); // Match this duration with the CSS transition duration
+      }, 700); // Match this duration with the CSS transition duration
     }
   };
 
@@ -101,13 +112,16 @@ const Dashboard = () => {
                   courses.map(course => (
                     <Card
                       key={course.id}
-                      className={`relative transition-all duration-300 ease-in-out ${
-                        deletingCourseId === course.id ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
+                      className={`relative transition-all duration-700 ease-in-out ${
+                        deletingCourseId === course.id
+                          ? 'opacity-0 -translate-y-4 max-h-0 p-0 m-0 overflow-hidden bg-red-500'
+                          : 'opacity-100 translate-y-0 max-h-96'
                       }`}
                     >
                       <CardHeader className="flex flex-row items-start justify-between space-x-2">
                         <Link to={`/course/${course.id}`} className="flex-grow overflow-hidden">
                           <CardTitle className="truncate">{course.title}</CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1">Created: {formatDate(course.createdAt)}</p>
                         </Link>
                         <Button
                           variant="destructive"

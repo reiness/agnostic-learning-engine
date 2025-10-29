@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/select';
 import { db, auth } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useNavigate } from 'react-router-dom';
 import { generateCourse } from '../services/gemini';
 import { checkAndResetCredits } from '../services/credits';
 import { useEffect } from 'react';
@@ -20,7 +19,6 @@ import Spinner from './Spinner'; // Import Spinner component
 
 const CourseCreationForm = () => {
   const [user] = useAuthState(auth);
-  const navigate = useNavigate();
   const [topic, setTopic] = useState('');
   const [duration, setDuration] = useState('7_days');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,49 +48,26 @@ const CourseCreationForm = () => {
 
     setIsLoading(true);
     try {
-      const courseData = await generateCourse(topic, duration);
-      if (!courseData || !courseData.title || !Array.isArray(courseData.dailyModules)) {
-        console.error("Invalid course data structure received from API:", courseData);
-        alert("Error: The generated course data was incomplete. Please try again.");
-        return;
-      }
-
-      const userRef = doc(db, 'users', user.uid);
-      await runTransaction(db, async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists() || userDoc.data().credits <= 0) {
-          throw new Error("Insufficient credits.");
-        }
-
-        const newCredits = userDoc.data().credits - 1;
-        transaction.update(userRef, { credits: newCredits });
-
-        const coursesRef = collection(db, 'courses');
-        const newCourseDocRef = doc(coursesRef);
-        transaction.set(newCourseDocRef, {
-          userId: user.uid,
-          title: courseData.title,
-          durationDays: parseInt(duration.replace('_days', '')),
-          originalPrompt: topic,
-          status: 'active',
-          createdAt: new Date()
-        });
-
-        courseData.dailyModules.forEach(module => {
-          const day = module.day.toString();
-          const moduleRef = doc(db, 'courses', newCourseDocRef.id, 'modules', day);
-          transaction.set(moduleRef, {
-            title: module.title,
-            description: module.description,
-            learningMaterial: "",
-            isCompleted: false
-          });
-        });
-        navigate(`/course/${newCourseDocRef.id}`);
+      // "Fire and Forget" call to our new background function
+      await fetch("/.netlify/functions/generateCourse-background", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topic,
+          duration: duration,
+          userId: user.uid
+        })
       });
+
+      // Show a success message
+      alert("Course generation started! We'll notify you when it's ready.");
+      // Reset the form
+      setTopic('');
+      setDuration('7_days');
+
     } catch (error) {
-      console.error('Error generating course:', error);
-      alert("Error: Course generation failed. Please try again.");
+      console.error('Error triggering course generation:', error);
+      alert("Error: Could not start the course generation. Please try again.");
     } finally {
       setIsLoading(false);
     }

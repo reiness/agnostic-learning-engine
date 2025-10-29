@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 # Local Netlify folder
 .netlify
+
+# Private keys and environment variables
+service-account.json

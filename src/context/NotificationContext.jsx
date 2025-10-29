@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { db, auth } from '../firebase.js';
+import { db, auth } from '../firebase.js'; // Ensure correct path
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
@@ -7,23 +7,21 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 const NotificationContext = createContext();
 
 // Create the audio object
-const audio = new Audio('/notification.mp3');
+const audio = new Audio('/notification.mp3'); // Ensure this path is correct
 
 // Create the Provider component
 export const NotificationProvider = ({ children }) => {
   const [user] = useAuthState(auth);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  // This ref will store the previous count to prevent re-plays
   const prevUnreadCountRef = useRef(0);
-  const isBellOpenRef = useRef(false); // New ref to track if the bell is open
+  const isBellOpenRef = useRef(false); // Ref to track if bell is open
 
   useEffect(() => {
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
-      prevUnreadCountRef.current = 0; // Reset ref on logout
+      prevUnreadCountRef.current = 0;
       return;
     }
 
@@ -43,16 +41,15 @@ export const NotificationProvider = ({ children }) => {
       });
 
       // --- NEW SOUND LOGIC V2 ---
-      // Check if the total number of notifications increased OR if the unread count increased
-      // This covers cases where a notification is added or marked unread
-      if ((notifs.length > notifications.length || newCount > prevUnreadCountRef.current) && !isBellOpenRef.current) {
-         // Play sound only if the browser allows it (e.g., after user interaction)
+      // Check if the unread count increased AND if the bell is closed
+      if (newCount > prevUnreadCountRef.current && !isBellOpenRef.current) {
+         // Play sound but catch the error if browser blocks it
          audio.play().catch(error => {
-            console.warn("Audio play failed:", error); // Log warning if autoplay fails
+            // Log warning if autoplay fails, but don't crash
+            console.warn("Audio play failed (likely due to browser policy):", error);
          });
       }
       
-      // Update the ref *after* the check
       prevUnreadCountRef.current = newCount;
       // --- END NEW LOGIC V2 ---
 
@@ -61,7 +58,11 @@ export const NotificationProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user]); // Removed notifications from dependencies
+
+  const setIsBellOpen = (isOpen) => { // Function to update the ref
+      isBellOpenRef.current = isOpen;
+  };
 
   const markAsRead = async (id) => {
     const docRef = doc(db, `users/${user.uid}/notifications`, id);
@@ -79,17 +80,13 @@ export const NotificationProvider = ({ children }) => {
     });
   };
 
-  const setIsBellOpen = (isOpen) => {
-    isBellOpenRef.current = isOpen;
-  };
-
   const value = {
     notifications,
     unreadCount,
     markAsRead,
     clearNotification,
     clearAll,
-    setIsBellOpen
+    setIsBellOpen // Expose the function to update the ref
   };
 
   return (
@@ -99,7 +96,7 @@ export const NotificationProvider = ({ children }) => {
   );
 };
 
-// Create the custom hook to use the context
+// Custom hook to use the context
 export const useNotifications = () => {
   return useContext(NotificationContext);
 };

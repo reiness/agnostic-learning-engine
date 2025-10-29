@@ -75,32 +75,73 @@ const CoursePage = () => {
     return () => unsubscribe();
 
   }, [courseId]); // We removed 'selectedModule' from the dependency array
- 
+
+  useEffect(() => {
+    // Don't listen if no module is selected or if we don't have IDs
+    if (!selectedModule || !selectedModule.id || !courseId) {
+      setFlashcards([]); // Clear flashcards if no module selected
+      return;
+    }
+
+    // Path to the flashcard document for the current module
+    const flashcardDocRef = doc(db, "courses", courseId, "flashcards", selectedModule.id);
+
+    // Set up the LIVE LISTENER
+    const unsubscribe = onSnapshot(flashcardDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        // Flashcards found, update the state
+        setFlashcards(docSnap.data().cards || []);
+      } else {
+        // No flashcards found for this module yet
+        setFlashcards([]);
+      }
+    });
+
+    // Cleanup the listener when the selected module changes or the page unmounts
+    return () => unsubscribe();
+
+  }, [selectedModule, courseId]); // Re-run when selectedModule or courseId changes
+
   const handleGenerateFlashcards = async () => {
-    if (!selectedModule?.learningMaterial) {
-      alert("Please generate the lesson material first.");
+    // Basic checks first
+    if (!user || !selectedModule || !selectedModule.learningMaterial) {
+      alert("Cannot generate flashcards. Make sure the lesson is loaded and you are logged in.");
       return;
     }
+    // Check if flashcards already exist (via the listener state)
     if (flashcards.length > 0) {
-      alert("Flashcards have already been generated for this module.");
-      return;
+        alert("Flashcards have already been generated for this module.");
+        return;
     }
-    setIsFlashcardLoading(true);
+    
+    setIsFlashcardLoading(true); // Start visual loading state
+
     try {
-      const response = await fetch("/.netlify/functions/generateFlashcards", {
+      // "Fire and Forget" call to the background function
+      await fetch("/.netlify/functions/generateFlashcards-background", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonMaterial: selectedModule.learningMaterial })
+        body: JSON.stringify({
+          lessonMaterial: selectedModule.learningMaterial,
+          courseId: courseId,
+          moduleId: selectedModule.id,
+          userId: user.uid,
+          moduleTitle: selectedModule.title
+        })
       });
-      const data = await response.json();
-      const flashcardRef = doc(db, "courses", courseId, "flashcards", selectedModule.id);
-      await setDoc(flashcardRef, { cards: data.cards });
-      setFlashcards(data.cards);
+      
+      // No need to setFlashcards here - the listener will do it.
+      // We leave isFlashcardLoading as true - the listener should ideally turn it off,
+      // but for now, we rely on the button disabling.
+      alert("Flashcard generation started! We'll notify you when they're ready.");
+
     } catch (error) {
-      console.error("Error generating flashcards:", error);
-    } finally {
-      setIsFlashcardLoading(false);
+      console.error('Error triggering flashcard generation:', error);
+      alert("Error: Could not start flashcard generation. Please try again.");
+      setIsFlashcardLoading(false); // Stop loading on error
     }
+    // We keep the button disabled while isFlashcardLoading is true
+    // or if flashcards.length > 0
   };
  
   const handleMarkAsComplete = async () => {
@@ -243,9 +284,9 @@ const CoursePage = () => {
                 <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
                   <Button
                     onClick={handleGenerateFlashcards}
-                    disabled={isFlashcardLoading || !selectedModule || !selectedModule.learningMaterial}
+                    disabled={isFlashcardLoading || flashcards.length > 0 || !selectedModule || !selectedModule.learningMaterial}
                   >
-                    {isFlashcardLoading ? 'Generating...' : 'Generate Flashcards'}
+                    {isFlashcardLoading ? 'Generating...' : (flashcards.length > 0 ? 'Flashcards Ready' : 'Generate Flashcards')}
                   </Button>
                   <Button
                     onClick={handleMarkAsComplete}
@@ -310,11 +351,11 @@ const FlashcardViewer = ({ cards }) => {
           >
             <div className={`front ${index % 2 === 0 ? 'bg-flashcard-4' : 'bg-flashcard-red'}`}>
               {/* We changed text-lg to text-base and break-words to break-all */}
-              <p className="text-base text-foreground w-full p-4 text-center break-all">{card.q}</p>
+              <p className="text-base text-foreground w-full p-4 text-center break-words">{card.q}</p>
             </div>
             <div className={`back bg-flashcard-2`}>
               {/* We changed text-lg to text-base and break-words to break-all */}
-              <p className="text-base text-foreground w-full p-4 text-center break-all">{card.a}</p>
+              <p className="text-base text-foreground w-full p-4 text-center break-words">{card.a}</p>
             </div>
           </div>
         ))}

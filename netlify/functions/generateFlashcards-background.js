@@ -1,15 +1,31 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import serviceAccount from "../../service-account.json";
 
-// --- Initialize Firebase Admin ---
-if (getApps().length === 0) {
+
+// --- Initialize Firebase Admin (for backend) ---
+let serviceAccountJson;
+try {
+  // Decode the Base64 string from the environment variable
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  if (!serviceAccountBase64) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 env var not set.');
+  }
+  const decodedString = Buffer.from(serviceAccountBase64, 'base64').toString('utf-8');
+  serviceAccountJson = JSON.parse(decodedString);
+} catch (e) {
+  console.error("Error parsing Firebase service account key:", e);
+  // Handle the error appropriately, maybe return a 500 status
+}
+
+// Initialize only if the key was parsed and no app exists
+if (serviceAccountJson && getApps().length === 0) {
   initializeApp({
-    credential: cert(serviceAccount)
+    credential: cert(serviceAccountJson) // <-- USE THE DECODED JSON
   });
 }
 const db = getFirestore();
+// --- END Initialize Firebase Admin ---
 
 // --- Initialize Gemini API ---
 const API_KEY = process.env.VITE_GEMINI_API_KEY;

@@ -34,12 +34,12 @@ const Navbar = ({ toggleSidebar, isSidebarCollapsed }) => {
   };
 
   return (
-    <nav className="bg-card text-card-foreground p-4 flex justify-between items-center shadow-lg">
+    <nav className="glass-morphism-navbar p-4 flex justify-between items-center">
       <div className="flex items-center space-x-4">
         <Button onClick={toggleSidebar} variant="ghost" size="icon">
           <ChevronsLeft className={`transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
         </Button>
-        <Link to="/dashboard" className="text-2xl font-bold">
+        <Link to="/dashboard" className="text-foreground text-2xl font-bold">
           Alea - Agnostic Learning Assistant
         </Link>
       </div>

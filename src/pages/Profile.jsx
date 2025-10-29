@@ -77,7 +77,7 @@ const Profile = () => {
                 {user ? user.displayName : 'Learner'}'s Profile
               </h1>
               <p className="text-lg text-muted-foreground mt-2">
-                Your learning journey at a glance.
+                Date Joined: {user ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
               </p>
             </div>
           </header>

@@ -76,9 +76,9 @@ const CourseCreationForm = () => {
   return (
     <form onSubmit={handleGenerateCourse} className="p-8 bg-card text-card-foreground rounded-xl shadow-2xl space-y-6">
       <h2 className="text-3xl font-bold">Create a New Course</h2>
-      <p className="text-sm text-muted-foreground">
+      {/* <p className="text-sm text-muted-foreground">
         1 course generation costs 1 credit. Your credits reset daily.
-      </p>
+      </p> */}
       <div className="space-y-2">
         <Label htmlFor="courseTopic">What do you want to learn?</Label>
         <Textarea

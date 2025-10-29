@@ -95,10 +95,10 @@ const Profile = () => {
                 <h3 className="text-5xl font-bold text-yellow-400">{stats.modulesCompleted}</h3>
                 <p className="text-xl text-muted-foreground mt-2">Modules Completed</p>
               </div>
-              <div className="bg-card text-card-foreground p-6 rounded-xl shadow-lg text-center">
+              {/* <div className="bg-card text-card-foreground p-6 rounded-xl shadow-lg text-center">
                 <h3 className="text-5xl font-bold text-blue-400">{stats.credits}</h3>
                 <p className="text-xl text-muted-foreground mt-2">Credits Remaining</p>
-              </div>
+              </div> */}
             </div>
           )}
           <div className="mt-8">

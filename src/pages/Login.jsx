@@ -20,22 +20,22 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
-      <div className="text-center p-10 max-w-lg mx-auto bg-card text-card-foreground rounded-2xl shadow-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-light-primary text-light-primary">
+      <div className="text-center p-10 max-w-lg mx-auto bg-light-secondary text-light-primary rounded-2xl shadow-2xl">
         <header className="mb-8">
-          <h1 className="text-5xl font-bold mb-2">
+          <h1 className="text-5xl font-bold mb-2 text-text-light-primary">
             Alea
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-text-light-secondary">
             Your personalized AI-powered learning experience.
           </p>
         </header>
         <main>
-          <Button onClick={signInWithGoogle} className="w-full">
+          <Button onClick={signInWithGoogle} className="w-full bg-black text-white hover:bg-gray-800">
             Sign in with Google
           </Button>
         </main>
-        <footer className="mt-12 text-sm text-muted-foreground">
+        <footer className="mt-12 text-sm text-text-light-secondary">
           <p>&copy; {new Date().getFullYear()} Alea. All rights reserved.</p>
         </footer>
       </div>

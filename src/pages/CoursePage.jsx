@@ -117,7 +117,12 @@ const CoursePage = () => {
     }
   };
  
-  const handleModuleClick = async (module) => {
+  const handleModuleClick = async (module, index) => {
+    // Check if the module is locked
+    if (index > 0 && !modules[index - 1].isCompleted) {
+      alert("You must complete the previous lesson first.");
+      return;
+    }
     setSelectedModule(module);
 
     // 1. Check if material is already loaded
@@ -173,17 +178,22 @@ const CoursePage = () => {
     <div>
       <h2 className="text-2xl font-bold mb-6 text-foreground">{courseTitle}</h2>
       <nav className="space-y-3">
-        {modules.map((module) => (
-          <Button
-            key={module.id}
-            onClick={() => handleModuleClick(module)}
-            variant={selectedModule?.id === module.id ? 'default' : 'ghost'}
-            className="w-full justify-start text-wrap break-words h-auto py-2 text-left"
-          >
-            <span className="text-wrap break-words">Day {module.id}: {module.title}</span>
-            {module.isCompleted && <Icon name="check" className="text-green-400 flex-shrink-0 ml-2" />}
-          </Button>
-        ))}
+        {modules.map((module, index) => {
+          const isLocked = index > 0 && !modules[index - 1].isCompleted;
+          return (
+            <Button
+              key={module.id}
+              onClick={() => handleModuleClick(module, index)}
+              variant={selectedModule?.id === module.id ? 'default' : 'ghost'}
+              className="w-full justify-start text-wrap break-words h-auto py-2 text-left"
+              disabled={isLocked}
+            >
+              <span className="text-wrap break-words">Day {module.id}: {module.title}</span>
+              {module.isCompleted && <Icon name="check" className="text-green-400 flex-shrink-0 ml-2" />}
+              {isLocked && <Icon name="lock" className="text-red-400 flex-shrink-0 ml-2" />}
+            </Button>
+          );
+        })}
       </nav>
     </div>
   );

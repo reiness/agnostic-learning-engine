@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { ThemeContext } from '../context/ThemeContext';
 import Icon from './Icon';
+import NotificationBell from './NotificationBell.jsx';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ const Navbar = ({ toggleSidebar, isSidebarCollapsed }) => {
         </Link>
       </div>
       <div className="flex items-center space-x-4">
+        <NotificationBell />
         <Button onClick={toggleTheme} variant="ghost" size="icon">
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} className="text-yellow-400" />
         </Button>

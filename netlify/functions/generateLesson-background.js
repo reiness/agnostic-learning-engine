@@ -1,10 +1,24 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import serviceAccount from "../../service-account.json";
 
+// --- Initialize Firebase Admin (for backend) ---
+if (getApps().length === 0) {
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+}
+const db = getFirestore();
+
+// --- Initialize Gemini API ---
 const API_KEY = process.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+// --- Our Lesson Prompt ---
 const LESSON_GENERATOR_PROMPT = `
+
 # PRIME DIRECTIVE: ELITE EDUCATIONAL CONTENT ARCHITECT
 
 You are a distinguished Professor Emeritus of Pedagogical Sciences with 40+ years of experience designing transformative curricula at the world's most prestigious institutions. You possess deep expertise in cognitive science, learning theory (Bloom's Taxonomy, constructivism, experiential learning), instructional design frameworks (ADDIE, Backwards Design, Universal Design for Learning), and possess the rare ability to distill complex concepts into intellectually rigorous yet accessible material.
@@ -19,17 +33,56 @@ A learner will provide:
 You will architect a COMPLETE, publication-ready learning experience for that SINGLE MODULE ONLY—suitable for adoption at elite academic institutions.
 
 ---
+## ⚠️ CRITICAL: MODULE HEADER HANDLING
 
+**THE MODULE TITLE (H1) IS ALREADY GENERATED EXTERNALLY BY THE PLATFORM.**
+
+🚫 **DO NOT CREATE:**
+- An H1 title for the module (the platform displays this already)
+- Any duplicate or alternative module title
+
+✅ **YOU MUST INCLUDE (immediately after the external title):**
+- **Estimated completion time** - Format: "*Estimated time: 45-60 minutes*" (in italics, naturally integrated)
+- **Prerequisites** - If applicable, list what learners should know before starting (e.g., "**Prerequisites:** Basic understanding of X, familiarity with Y")
+- **Learning outcomes** - Clear, measurable objectives using "By the end of this module, you will be able to..." followed by Bloom's Taxonomy action verbs (analyze, construct, evaluate, synthesize, implement, distinguish, etc.)
+
+**Example of CORRECT start (your output begins here):**
+
+*Estimated time: 45-60 minutes*
+
+**Prerequisites:** Basic understanding of data types and program execution flow.
+
+**Learning Outcomes:** By the end of this module, you will be able to:
+- Create and initialize variables using proper naming conventions and syntax
+- Distinguish between different variable scopes and their appropriate use cases
+- Implement variable manipulation techniques to solve real-world programming problems
+- Evaluate the impact of variable mutability on program behavior and design
+
+## Why Variables Matter
+
+In the landscape of modern software development, understanding variables is not merely academic—it's the foundation upon which all dynamic programming is built...
+
+
+**Example of WRONG start (Don't do this):**
+
+# Introduction to Variables: Building Blocks of Programming
+
+This module will teach you about variables...
+
+---
 ## CONTENT ARCHITECTURE BLUEPRINT
 
 Your lesson MUST contain the following elements, but DO NOT use these labels verbatim in your output. These are structural guidelines for YOU, not section headers for the learner:
 
-### ELEMENT 1: Opening Framework
-*What to include (but don't label it as "MODULE HEADER"):*
-- An engaging, contextual title that captures the essence of this specific module
-- Estimated time to complete (naturally woven in: "This exploration will take approximately...")
-- Any prerequisites mentioned conversationally if needed
-- Clear learning outcomes framed as "By the end of this module, you will be able to..." using Bloom's Taxonomy action verbs (analyze, construct, evaluate, synthesize, implement, distinguish, etc.)
+### ELEMENT 1: Opening Framework 
+**⭐ START YOUR OUTPUT WITH THIS**
+
+Immediately include (in this order):
+1. **Estimated time** - Italicized, format: "*Estimated time: X-Y minutes*"
+2. **Prerequisites** - Bold label, conversational list if applicable, or state "**Prerequisites:** None" if truly beginner-friendly
+3. **Learning outcomes** - Bold label, followed by bulleted list starting with action verbs from Bloom's Taxonomy
+
+Then transition naturally into your content introduction.
 
 ### ELEMENT 2: Orientation and Context
 *What to include (but don't label it as "CONCEPTUAL SCAFFOLDING"):*
@@ -224,40 +277,59 @@ Use ONLY the approved markdown elements that work flawlessly on the platform: he
 Write naturally and contextually—your structural blueprint is internalized guidance, not a visible template.
 
 *Now... create something extraordinary.*
+
+
 `;
 
-export const handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+// --- The Main Function Handler ---
+export const handler = async (event, context) => {
+  const { courseId, moduleId, userId, moduleTitle, moduleDescription } = JSON.parse(event.body);
+
+  // 1. Define the notification reference *first*
+  const notifRef = db.collection(`users/${userId}/notifications`).doc();
 
   try {
-    const { courseTitle, moduleTitle, moduleDescription } = JSON.parse(event.body);
+    // 2. Create the 'Generating' notification
+    await notifRef.set({
+      message: `Generating your lesson for ${moduleTitle}...`,
+      status: "generating",
+      createdAt: new Date(),
+      type: "module_generation",
+      relatedDocId: moduleId,
+      isRead: false
+    });
 
-    const userPrompt = `
-      Course Title: ${courseTitle}
-      Module Title: ${moduleTitle}
-      Module Description: ${moduleDescription}
-    `;
+    // 3. Call Gemini API (The long-running task)
+    const userPrompt = `Course Title: ${courseId}\nModule Title: ${moduleTitle}\nModule Description: ${moduleDescription}`;
+    const result = await model.generateContent([LESSON_GENERATOR_PROMPT, userPrompt]);
+    const lessonText = result.response.text();
 
-    const result = await model.generateContent([
-      LESSON_GENERATOR_PROMPT,
-      userPrompt
-    ]);
+    // 4. Save the lesson to the course
+    const moduleRef = db.doc(`courses/${courseId}/modules/${moduleId}`);
+    await moduleRef.update({ learningMaterial: lessonText });
 
-    const response = result.response;
-    const lessonText = response.text();
+    // 5. Set the notification to 'Complete' (using merge for safety)
+    console.log("Step 4: Setting notification to 'complete'...");
+    await notifRef.set({
+      message: `Your lesson for ${moduleTitle} is ready!`,
+      status: "complete",
+      isRead: false,
+      link: `/course/${courseId}`
+      // Note: We don't need createdAt here because merge keeps existing fields
+    }, { merge: true }); // <-- This ensures it creates or updates
+    console.log("Step 4: ...Notification set/merged. --- END ---");
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ lessonMaterial: lessonText }),
-    };
-
-  } catch (error) {
-    console.error("Error in generateLesson function:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Failed to generate lesson material" }),
-    };
+} catch (error) {
+    console.error("Error generating lesson:", error);
+    
+    // This 'set' call will fix the error
+    await notifRef.set({
+      message: `Failed to generate lesson for ${moduleTitle}. Please try again.`,
+      status: "failed",
+      createdAt: new Date(),
+      type: "module_generation",
+      relatedDocId: moduleId,
+      isRead: false
+    });
   }
 };

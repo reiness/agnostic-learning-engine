@@ -1,52 +1,80 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // <-- IMPORT 'useRef'
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs, query, updateDoc, setDoc } from 'firebase/firestore';
-import { db, deleteCourse } from '../firebase.js';
+import { doc, getDoc, collection, getDocs, query, updateDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db, deleteCourse, auth } from '../firebase.js';
+import { useAuthState } from 'react-firebase-hooks/auth';
 import ReactMarkdown from 'react-markdown';
 import MainLayout from '../components/MainLayout';
 import Spinner from '../components/Spinner';
 import Icon from '../components/Icon';
 import AnimatedPage from '../components/AnimatedPage';
-import { Button } from '@/components/ui/button'; // Import Button component
- 
+import { Button } from '@/components/ui/button';
+ 
 const CoursePage = () => {
-  const { courseId } = useParams();
-  const navigate = useNavigate();
-  const [courseTitle, setCourseTitle] = useState('');
-  const [modules, setModules] = useState([]);
-  const [selectedModule, setSelectedModule] = useState(null);
-  const [isLessonLoading, setIsLessonLoading] = useState(false);
-  const [isCourseLoading, setIsCourseLoading] = useState(true);
-  const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
-  const [flashcards, setFlashcards] = useState([]);
+  const { courseId } = useParams();
+  const [user] = useAuthState(auth);
+  const navigate = useNavigate();
+  const [courseTitle, setCourseTitle] = useState('');
+  const [modules, setModules] = useState([]);
+  const [selectedModule, setSelectedModule] = useState(null);
+  const [loadingModuleId, setLoadingModuleId] = useState(null); // This state controls the spinner UI
+  const [isCourseLoading, setIsCourseLoading] = useState(true);
+  const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
+  const [flashcards, setFlashcards] = useState([]);
+  const loadingModuleIdRef = useRef(null); // <-- ADD THIS REF
  
   useEffect(() => {
-    const fetchCourseData = async () => {
-      try {
-        const courseDocRef = doc(db, "courses", courseId);
-        const courseDocSnap = await getDoc(courseDocRef);
-        if (courseDocSnap.exists()) {
-          setCourseTitle(courseDocSnap.data().title);
-        } else {
-          setCourseTitle("Course Not Found");
-        }
-        const modulesCollectionRef = collection(db, "courses", courseId, "modules");
-        const modulesQuery = query(modulesCollectionRef);
-        const modulesSnapshot = await getDocs(modulesQuery);
-        const fetchedModules = [];
-        modulesSnapshot.docs.forEach((doc) => {
-          fetchedModules.push({ id: doc.id, ...doc.data() });
-        });
-        fetchedModules.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-        setModules(fetchedModules);
-      } catch (error) {
-        console.error("Error fetching course data:", error);
-      } finally {
-        setIsCourseLoading(false);
+    if (!courseId) return;
+
+    // 1. Fetch the static course title
+    const fetchCourseTitle = async () => {
+      const docRef = doc(db, "courses", courseId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setCourseTitle(docSnap.data().title);
       }
     };
-    fetchCourseData();
-  }, [courseId]);
+    fetchCourseTitle();
+
+    // 2. Set up a LIVE LISTENER for the modules
+    const modulesQuery = query(collection(db, "courses", courseId, "modules"));
+
+    const unsubscribe = onSnapshot(modulesQuery, (snapshot) => {
+      const fetchedModules = [];
+      snapshot.forEach((doc) => {
+        fetchedModules.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Sort by day number
+      fetchedModules.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      setModules(fetchedModules);
+
+      // Check if the module we are loading is now complete
+      // --- THIS IS THE FIX ---
+      if (loadingModuleIdRef.current) { // <-- CHECK THE REF (NOT STALE)
+        const newlyLoadedModule = fetchedModules.find(m => m.id === loadingModuleIdRef.current); // <-- FIND BY REF
+        
+        // If the loaded module has its material, stop the spinner
+        if (newlyLoadedModule && newlyLoadedModule.learningMaterial) {
+          setLoadingModuleId(null); // <-- STOP SPINNER STATE
+          loadingModuleIdRef.current = null; // <-- RESET THE REF
+          // Also update the selected view to show it
+          setSelectedModule(newlyLoadedModule);
+        }
+      }
+      setIsCourseLoading(false); // Course data is loaded
+    });
+
+    // 3. Set the default selected module
+    setSelectedModule({
+      title: "Select a module",
+      learningMaterial: "Please select a module from the list to view its content."
+    });
+
+    // 4. Cleanup the listener when the page is closed
+    return () => unsubscribe();
+
+  }, [courseId]); // We removed 'selectedModule' from the dependency array
  
   const handleGenerateFlashcards = async () => {
     if (!selectedModule?.learningMaterial) {
@@ -90,53 +118,55 @@ const CoursePage = () => {
   };
  
   const handleModuleClick = async (module) => {
-    const dayNumber = parseInt(module.id);
-    if (dayNumber > 1) {
-      const previousDayId = (dayNumber - 1).toString();
-      const previousModule = modules.find(m => m.id === previousDayId);
-      if (!previousModule || !previousModule.isCompleted) {
-        alert(`You must complete 'Day ${previousDayId}: ${previousModule.title}' before starting this module.`);
-        return;
-      }
-    }
     setSelectedModule(module);
-    setFlashcards([]);
-    try {
-      const flashcardDocRef = doc(db, "courses", courseId, "flashcards", module.id);
-      const flashcardDocSnap = await getDoc(flashcardDocRef);
-      if (flashcardDocSnap.exists()) {
-        setFlashcards(flashcardDocSnap.data().cards);
-      }
-    } catch (error) {
-      console.error("Error fetching flashcards:", error);
-    }
+
+    // 1. Check if material is already loaded
     if (module.learningMaterial && module.learningMaterial !== "") {
+      // It's already here, just display it
       return;
     }
-    setIsLessonLoading(true);
+    
+    // 2. Check if it's already being generated
+    if (loadingModuleIdRef.current) {
+      // A lesson is already being generated, don't send another request
+      return;
+    }
+
+    setLoadingModuleId(module.id); // <-- SET STATE (for UI)
+    loadingModuleIdRef.current = module.id; // <-- SET REF (for listener)
+
+
+    // 3. If no user, stop.
+    if (!user) {
+      alert("You must be logged in to generate lessons.");
+      return;
+    }
+
+    loadingModuleIdRef.current = module.id;
+
+    // 4. "Fire and Forget" call to our new background function
     try {
-      const response = await fetch("/.netlify/functions/generateLesson", {
+      await fetch("/.netlify/functions/generateLesson-background", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courseTitle: courseTitle,
+          courseId: courseId,
+          moduleId: module.id,
+          userId: user.uid,
           moduleTitle: module.title,
           moduleDescription: module.description
         })
       });
-      const data = await response.json();
-      const newMaterial = data.lessonMaterial;
-      const moduleRef = doc(db, "courses", courseId, "modules", module.id);
-      await updateDoc(moduleRef, { learningMaterial: newMaterial });
-      const updatedModules = modules.map(m => m.id === module.id ? { ...m, learningMaterial: newMaterial } : m);
-      setModules(updatedModules);
-      setSelectedModule({ ...module, learningMaterial: newMaterial });
+      // NOTE: We do not 'await' a response or 'return data'
+      // We just trigger it and let the function run in the background.
+      
     } catch (error) {
-      console.error("Error generating lesson material:", error);
-      alert("Error: Failed to generate module content. Please try again later.");
-    } finally {
-      setIsLessonLoading(false);
+      console.error("Error triggering lesson generation:", error);
+      setLoadingModuleId(null); // Stop spinner on error
+      loadingModuleIdRef.current = null; // Reset ref on error
     }
+    // We leave 'loadingModuleIdRef.current' set here.
+    // The UI will update when the *live listener* sees the data.
   };
  
   const sidebarContent = (
@@ -194,16 +224,11 @@ const CoursePage = () => {
                 Delete Course
               </Button>
             </div>
-            {isCourseLoading ? (
-              <div className="text-center">
-                <Spinner />
-                <p className="mt-4 text-muted-foreground">Loading course...</p>
-              </div>
-            ) : selectedModule && selectedModule.learningMaterial ? (
+            {selectedModule && selectedModule.learningMaterial && selectedModule.learningMaterial !== "Please select a module from the list to view its content." ? (
               <>
                 <h1 className="text-4xl font-bold text-foreground mb-6">{selectedModule.title}</h1>
                 <div className="prose dark:prose-invert max-w-none">
-                  {isLessonLoading ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
+                  {loadingModuleIdRef.current === selectedModule?.id ? <Spinner /> : <ReactMarkdown>{selectedModule.learningMaterial}</ReactMarkdown>}
                 </div>
                 <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
                   <Button
@@ -224,15 +249,15 @@ const CoursePage = () => {
               </>
             ) : (
               <div className="text-center">
-                {selectedModule && isLessonLoading ? (
+                {loadingModuleIdRef.current === selectedModule?.id ? (
                   <>
                     <Spinner />
                     <p className="mt-4 text-muted-foreground">Please wait while we are cooking your module</p>
                   </>
                 ) : (
                   <>
-                    <p className="mt-4 text-muted-foreground">Select a module</p>
-                    <p className="text-muted-foreground">Please select a module from the list to view its content.</p>
+                    <p className="mt-4 text-muted-foreground">{selectedModule?.title}</p>
+                    <p className="text-muted-foreground">{selectedModule?.learningMaterial}</p>
                     <div className="mt-8 pt-6 border-t border-border flex items-center space-x-4">
                       <Button
                         onClick={handleGenerateFlashcards}

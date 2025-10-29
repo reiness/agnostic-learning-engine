@@ -1,12 +1,26 @@
-// Use modern ES Module 'import'
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import serviceAccount from "../../service-account.json";
 
-// Get the API key safely from server environment variables
+// --- Initialize Firebase Admin (for backend) ---
+if (getApps().length === 0) {
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+}
+const db = getFirestore();
+
+// --- Initialize Gemini API ---
 const API_KEY = process.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
+// Use the fast 'flash' model for a syllabus
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-// Define the prompt directly inside the function
-const COURSE_ARCHITECT_PROMPT = `# IDENTITY: MASTER CURRICULUM ARCHITECT
+// --- YOUR MASTER CURRICULUM ARCHITECT PROMPT ---
+// (This is the excellent prompt you provided)
+const COURSE_ARCHITECT_PROMPT = `
+# IDENTITY: MASTER CURRICULUM ARCHITECT
 
 You are the Dean of Curriculum Design at Harvard University with 30+ years of experience architecting world-class educational programs. You possess deep expertise in:
 
@@ -237,46 +251,75 @@ Before outputting, verify:
 
 *Now architect a transformative learning experience.*`;
 
-// Use modern ES Module 'export'
-export const handler = async (event) => {
-  // Don't run unless it's a POST request
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+// --- The Main Function Handler ---
+export const handler = async (event, context) => {
+  // Get data from the frontend
+  const { topic, duration, userId } = JSON.parse(event.body);
+  
+  // 1. Define the notification reference
+  const notifRef = db.collection(`users/${userId}/notifications`).doc();
 
   try {
-    // Get the 'topic' and 'duration' from the React app
-    const { topic, duration } = JSON.parse(event.body);
+    // 2. Create the 'Generating' notification
+    await notifRef.set({
+      message: `Generating your new course: ${topic}...`,
+      status: "generating",
+      createdAt: new Date(),
+      type: "course_generation",
+      isRead: false
+    });
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // 3. Call Gemini API (The long-running task)
+    const userPrompt = `Topic: ${topic}\nDuration: ${duration}`;
+    const result = await model.generateContent([COURSE_ARCHITECT_PROMPT, userPrompt]);
+    const responseText = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+    const courseData = JSON.parse(responseText);
 
-    const userPrompt = `
-      Topic: ${topic}
-      Duration: ${duration}
-    `;
+    // 4. Save the course to Firestore
+    const coursesRef = db.collection('courses');
+    const newCourseDocRef = await coursesRef.add({
+      userId: userId,
+      title: courseData.title,
+      durationDays: parseInt(duration.replace('_days', '')),
+      originalPrompt: topic,
+      status: 'active',
+      createdAt: new Date()
+    });
+    const newCourseId = newCourseDocRef.id;
 
-    const result = await model.generateContent([
-      COURSE_ARCHITECT_PROMPT,
-      userPrompt
-    ]);
+    // 5. Save the modules in a batch
+    const batch = db.batch();
+    courseData.dailyModules.forEach(module => {
+      const day = module.day.toString();
+      const moduleRef = db.doc(`courses/${newCourseId}/modules/${day}`);
+      batch.set(moduleRef, {
+        title: module.title,
+        description: module.description,
+        learningMaterial: "",
+        isCompleted: false
+      });
+    });
+    await batch.commit();
 
-    const response = result.response;
-    const text = response.text();
-
-    // Clean the JSON string
-    const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-
-    // Send the JSON string *back* to the React app
-    return {
-      statusCode: 200,
-      body: cleanedText,
-    };
+    // 6. Update notification to 'Complete'
+    await notifRef.set({ // Use 'set' for safety
+      message: `Your course "${courseData.title}" is ready!`,
+      status: "complete",
+      createdAt: new Date(), // Update timestamp
+      type: "course_generation",
+      isRead: false,
+      link: `/course/${newCourseId}` // Add a link to the new course!
+    });
 
   } catch (error) {
-    console.error("Error in Netlify function:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Failed to generate course" }),
-    };
+    console.error("Error generating course:", error);
+    // Use 'set' to create a 'failed' notification
+    await notifRef.set({
+      message: `Failed to generate course: ${topic}. Please try again.`,
+      status: "failed",
+      createdAt: new Date(),
+      type: "course_generation",
+      isRead: false
+    });
   }
 };

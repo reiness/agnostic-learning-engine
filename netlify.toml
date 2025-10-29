@@ -2,7 +2,7 @@
   functions = "netlify/functions"
 
 [functions."*"]
-  timeout = 180
+  timeout = 10
 
 [dev]
   framework = "#custom"

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import logger from './utils/logger.js';
 
 
 // --- Initialize Firebase Admin (for backend) ---
@@ -14,7 +15,7 @@ try {
   const decodedString = Buffer.from(serviceAccountBase64, 'base64').toString('utf-8');
   serviceAccountJson = JSON.parse(decodedString);
 } catch (e) {
-  console.error("Error parsing Firebase service account key:", e);
+  logger.error("Error parsing Firebase service account key:", e);
   // Handle the error appropriately, maybe return a 500 status
 }
 
@@ -90,7 +91,7 @@ This module will teach you about variables...
 
 Your lesson MUST contain the following elements, but DO NOT use these labels verbatim in your output. These are structural guidelines for YOU, not section headers for the learner:
 
-### ELEMENT 1: Opening Framework 
+### ELEMENT 1: Opening Framework
 **⭐ START YOUR OUTPUT WITH THIS**
 
 Immediately include (in this order):
@@ -299,6 +300,7 @@ Write naturally and contextually—your structural blueprint is internalized gui
 
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
+  logger.info("generateLesson-background function started.");
   const { courseId, moduleId, userId, moduleTitle, moduleDescription } = JSON.parse(event.body);
 
   // 1. Define the notification reference *first*
@@ -314,18 +316,21 @@ export const handler = async (event, context) => {
       relatedDocId: moduleId,
       isRead: false
     });
+    logger.info(`Generating lesson for user ${userId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
 
     // 3. Call Gemini API (The long-running task)
     const userPrompt = `Course Title: ${courseId}\nModule Title: ${moduleTitle}\nModule Description: ${moduleDescription}`;
     const result = await model.generateContent([LESSON_GENERATOR_PROMPT, userPrompt]);
     const lessonText = result.response.text();
+    logger.info(`Gemini API call successful for lesson generation for module ${moduleId}.`);
 
     // 4. Save the lesson to the course
     const moduleRef = db.doc(`courses/${courseId}/modules/${moduleId}`);
     await moduleRef.update({ learningMaterial: lessonText });
+    logger.info(`Lesson saved to Firestore for module ID: ${moduleId}`);
 
     // 5. Set the notification to 'Complete' (using merge for safety)
-    console.log("Step 4: Setting notification to 'complete'...");
+    logger.info("Setting notification to 'complete'...");
     await notifRef.set({
       message: `Your lesson for ${moduleTitle} is ready!`,
       status: "complete",
@@ -333,10 +338,10 @@ export const handler = async (event, context) => {
       link: `/course/${courseId}`
       // Note: We don't need createdAt here because merge keeps existing fields
     }, { merge: true }); // <-- This ensures it creates or updates
-    console.log("Step 4: ...Notification set/merged. --- END ---");
+    logger.info("Notification set/merged. --- END ---");
 
 } catch (error) {
-    console.error("Error generating lesson:", error);
+    logger.error(`Error generating lesson for user ${userId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
     
     // This 'set' call will fix the error
     await notifRef.set({
@@ -348,4 +353,5 @@ export const handler = async (event, context) => {
       isRead: false
     });
   }
+  logger.info("generateLesson-background function finished.");
 };

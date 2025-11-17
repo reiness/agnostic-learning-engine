@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import logger from './utils/logger.js';
 
 // --- Initialize Firebase Admin (for backend) ---
 let serviceAccountJson;
@@ -13,7 +14,7 @@ try {
   const decodedString = Buffer.from(serviceAccountBase64, 'base64').toString('utf-8');
   serviceAccountJson = JSON.parse(decodedString);
 } catch (e) {
-  console.error("Error parsing Firebase service account key:", e);
+  logger.error("Error parsing Firebase service account key:", e);
   // Handle the error appropriately, maybe return a 500 status
 }
 
@@ -176,7 +177,7 @@ Each module description (1-2 sentences) must accomplish ALL of the following:
 **FORMAT SPECIFICATION:**
 
 🔒 **OUTPUT MUST BE PURE JSON ONLY**
-   - No markdown code fences 
+   - No markdown code fences
    - No explanatory text before the JSON
    - No commentary after the JSON
    - No line breaks or spacing before the opening brace
@@ -268,6 +269,7 @@ Before outputting, verify:
 
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
+  logger.info("generateCourse-background function started.");
   // Get data from the frontend
   const { topic, duration, userId } = JSON.parse(event.body);
   
@@ -283,12 +285,14 @@ export const handler = async (event, context) => {
       type: "course_generation",
       isRead: false
     });
+    logger.info(`Generating course for user ${userId} on topic: ${topic}, duration: ${duration}`);
 
     // 3. Call Gemini API (The long-running task)
     const userPrompt = `Topic: ${topic}\nDuration: ${duration}`;
     const result = await model.generateContent([COURSE_ARCHITECT_PROMPT, userPrompt]);
     const responseText = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
     const courseData = JSON.parse(responseText);
+    logger.info(`Gemini API call successful for course generation. Course title: ${courseData.title}`);
 
     // 4. Save the course to Firestore
     const coursesRef = db.collection('courses');
@@ -301,6 +305,7 @@ export const handler = async (event, context) => {
       createdAt: new Date()
     });
     const newCourseId = newCourseDocRef.id;
+    logger.info(`Course saved to Firestore with ID: ${newCourseId}`);
 
     // 5. Save the modules in a batch
     const batch = db.batch();
@@ -315,6 +320,7 @@ export const handler = async (event, context) => {
       });
     });
     await batch.commit();
+    logger.info(`Modules saved to Firestore for course ID: ${newCourseId}`);
 
     // 6. Update notification to 'Complete'
     await notifRef.set({ // Use 'set' for safety
@@ -325,9 +331,10 @@ export const handler = async (event, context) => {
       isRead: false,
       link: `/course/${newCourseId}` // Add a link to the new course!
     });
+    logger.info(`Course generation complete for course ID: ${newCourseId}. Notification updated.`);
 
   } catch (error) {
-    console.error("Error generating course:", error);
+    logger.error(`Error generating course for user ${userId} on topic ${topic}: ${error.message}`, error);
     // Use 'set' to create a 'failed' notification
     await notifRef.set({
       message: `Failed to generate course: ${topic}. Please try again.`,
@@ -337,4 +344,5 @@ export const handler = async (event, context) => {
       isRead: false
     });
   }
+  logger.info("generateCourse-background function finished.");
 };

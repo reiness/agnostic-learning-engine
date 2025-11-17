@@ -1,3 +1,5 @@
+import logger from '../utils/logger';
+
 export const COURSE_ARCHITECT_PROMPT = `
 You are an expert curriculum designer. Your task is to create a progressive, day-by-day learning syllabus based on a given topic and duration.
 
@@ -22,16 +24,19 @@ Based on the user's provided topic and desired duration, generate a comprehensiv
  * @returns {Promise<any>} The response from the background function.
  */
 export async function generateCourse(topic, duration) {
-  if (typeof topic !== 'string' || topic.trim() === '') {
-    throw new TypeError('Topic must be a non-empty string.');
-  }
-
-  const validDurations = ['7_days', '14_days', '30_days'];
-  if (!validDurations.includes(duration)) {
-    throw new TypeError('Duration must be one of "7_days", "14_days", or "30_days".');
-  }
-
+  logger.info(`Entering generateCourse with topic: ${topic}, duration: ${duration}`);
   try {
+    if (typeof topic !== 'string' || topic.trim() === '') {
+      logger.error(`Invalid topic provided: ${topic}`);
+      throw new TypeError('Topic must be a non-empty string.');
+    }
+
+    const validDurations = ['7_days', '14_days', '30_days'];
+    if (!validDurations.includes(duration)) {
+      logger.error(`Invalid duration provided: ${duration}`);
+      throw new TypeError('Duration must be one of "7_days", "14_days", or "30_days".');
+    }
+
     // This is the special path to our new Netlify Function
     const response = await fetch("/.netlify/functions/generateCourse", {
       method: "POST",
@@ -42,15 +47,18 @@ export async function generateCourse(topic, duration) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`Failed to fetch from function. Status: ${response.status}, Response: ${errorText}`);
       throw new Error(`Failed to fetch from function. Status: ${response.status}`);
     }
 
     // The function's body is the JSON string, so we parse it
-    const data = await response.json(); 
+    const data = await response.json();
+    logger.info(`Exiting generateCourse successfully for topic: ${topic}`);
     return data;
 
   } catch (error) {
-    console.error("Error calling Netlify function:", error);
+    logger.error(`Error in generateCourse for topic: ${topic}, duration: ${duration}: ${error.message}`);
     throw error;
   }
 }

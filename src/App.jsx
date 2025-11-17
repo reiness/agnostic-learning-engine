@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import logger from './utils/logger';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -9,6 +11,13 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext.jsx';
 
 function App() {
+  useEffect(() => {
+    logger.info('App component mounted.');
+    return () => {
+      logger.info('App component unmounted.');
+    };
+  }, []);
+
   return (
     <ThemeProvider>
       <NotificationProvider>

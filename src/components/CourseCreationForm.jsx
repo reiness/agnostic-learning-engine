@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, addDoc, doc, writeBatch, runTransaction } from 'firebase/firestore';
+import logger from '../utils/logger';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,6 @@ import { db, auth } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { generateCourse } from '../services/gemini';
 import { checkAndResetCredits } from '../services/credits';
-import { useEffect } from 'react';
 import Spinner from './Spinner'; // Import Spinner component
 
 const CourseCreationForm = () => {
@@ -23,6 +23,10 @@ const CourseCreationForm = () => {
   const [duration, setDuration] = useState('7_days');
   const [isLoading, setIsLoading] = useState(false);
   const [credits, setCredits] = useState(0);
+
+  useEffect(() => {
+    logger.debug('CourseCreationForm state changed:', { topic, duration, isLoading, credits });
+  }, [topic, duration, isLoading, credits]);
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -36,6 +40,7 @@ const CourseCreationForm = () => {
 
   const handleGenerateCourse = async (e) => {
     e.preventDefault();
+    logger.info('Course creation form submitted.');
 
     const trimmedTopic = topic.trim();
 
@@ -74,7 +79,7 @@ const CourseCreationForm = () => {
       setDuration('7_days');
 
     } catch (error) {
-      console.error('Error triggering course generation:', error);
+      logger.error('Error triggering course generation:', error);
       alert("Error: Could not start the course generation. Please try again.");
     } finally {
       setIsLoading(false);

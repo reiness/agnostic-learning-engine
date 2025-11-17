@@ -77,6 +77,26 @@ const CoursePage = () => {
   }, [courseId]); // We removed 'selectedModule' from the dependency array
 
   useEffect(() => {
+    if (!user) return;
+
+    const notifQuery = query(collection(db, `users/${user.uid}/notifications`));
+    const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const notif = change.doc.data();
+          if (notif.status === 'failed' && notif.relatedDocId === loadingModuleIdRef.current) {
+            setLoadingModuleId(null);
+            loadingModuleIdRef.current = null;
+            alert(`Failed to generate module: ${notif.message}`);
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
     // Don't listen if no module is selected or if we don't have IDs
     if (!selectedModule || !selectedModule.id || !courseId) {
       setFlashcards([]); // Clear flashcards if no module selected
@@ -91,6 +111,7 @@ const CoursePage = () => {
       if (docSnap.exists()) {
         // Flashcards found, update the state
         setFlashcards(docSnap.data().cards || []);
+        setIsFlashcardLoading(false); // Stop loading when flashcards are fetched
       } else {
         // No flashcards found for this module yet
         setFlashcards([]);

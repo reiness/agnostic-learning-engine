@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import logger from './utils/logger.js';
 
 
 // --- Initialize Firebase Admin (for backend) ---
@@ -14,7 +15,7 @@ try {
   const decodedString = Buffer.from(serviceAccountBase64, 'base64').toString('utf-8');
   serviceAccountJson = JSON.parse(decodedString);
 } catch (e) {
-  console.error("Error parsing Firebase service account key:", e);
+  logger.error("Error parsing Firebase service account key:", e);
   // Handle the error appropriately, maybe return a 500 status
 }
 
@@ -46,6 +47,7 @@ The JSON format must be strictly this:
 
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
+  logger.info("generateFlashcards-background function started.");
   const { lessonMaterial, courseId, moduleId, userId, moduleTitle } = JSON.parse(event.body);
 
   // 1. Define notification reference
@@ -63,15 +65,18 @@ export const handler = async (event, context) => {
       relatedDocId: moduleId, // Link to the module
       isRead: false
     });
+    logger.info(`Generating flashcards for user ${userId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
 
     // 4. Call Gemini API
     const result = await model.generateContent([FLASHCARD_GENERATOR_PROMPT, lessonMaterial]);
     const responseText = result.response.text().replace(/```json/g, "").replace(/```/g, "").trim();
     const flashcardData = JSON.parse(responseText); // Should be { cards: [...] }
+    logger.info(`Gemini API call successful for flashcard generation for module ${moduleId}.`);
 
     // 5. Save flashcards to Firestore
     // Use 'set' here because this might be the first time flashcards are created for this module
     await flashcardRef.set({ cards: flashcardData.cards });
+    logger.info(`Flashcards saved to Firestore for module ID: ${moduleId}`);
 
     // 6. Update notification to 'Complete'
     await notifRef.set({ // Use 'set' with merge for safety
@@ -83,9 +88,10 @@ export const handler = async (event, context) => {
       isRead: false,
       link: `/course/${courseId}` // Link back to the course page
     }, { merge: true });
+    logger.info(`Flashcard generation complete for module ID: ${moduleId}. Notification updated.`);
 
   } catch (error) {
-    console.error("Error generating flashcards:", error);
+    logger.error(`Error generating flashcards for user ${userId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
     // Use 'set' to create a 'failed' notification
     await notifRef.set({
       message: `Failed to generate flashcards for ${moduleTitle}. Please try again.`,
@@ -96,4 +102,5 @@ export const handler = async (event, context) => {
       isRead: false
     });
   }
+  logger.info("generateFlashcards-background function finished.");
 };

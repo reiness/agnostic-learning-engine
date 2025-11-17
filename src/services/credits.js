@@ -1,5 +1,6 @@
 import { doc, getDoc, updateDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
+import logger from '../utils/logger';
 
 /**
  * Checks and resets user credits if it's a new day.
@@ -7,39 +8,50 @@ import { db } from '../firebase';
  * @returns {Promise<number>} The user's current credits.
  */
 const checkAndResetCredits = async (userId) => {
-  if (typeof userId !== 'string' || userId.trim() === '') {
-    throw new TypeError('Invalid userId provided.');
-  }
-  const userRef = doc(db, 'users', userId);
-
-  return runTransaction(db, async (transaction) => {
-    const userDoc = await transaction.get(userRef);
-
-    if (!userDoc.exists()) {
-      // If the user document doesn't exist, create it with default credits.
-      transaction.set(userRef, {
-        credits: 10,
-        lastCreditReset: serverTimestamp(),
-      });
-      return 10;
+  logger.info(`Entering checkAndResetCredits for userId: ${userId}`);
+  try {
+    if (typeof userId !== 'string' || userId.trim() === '') {
+      throw new TypeError('Invalid userId provided.');
     }
+    const userRef = doc(db, 'users', userId);
 
-    const userData = userDoc.data();
-    const { credits, lastCreditReset } = userData;
-    const today = new Date();
-    const lastResetDate = lastCreditReset?.toDate();
+    const credits = await runTransaction(db, async (transaction) => {
+      const userDoc = await transaction.get(userRef);
 
-    if (!lastResetDate || lastResetDate.toDateString() !== today.toDateString()) {
-      // If credits have not been reset today, reset them to 10.
-      transaction.update(userRef, {
-        credits: 10,
-        lastCreditReset: serverTimestamp(),
-      });
-      return 10;
-    }
+      if (!userDoc.exists()) {
+        // If the user document doesn't exist, create it with default credits.
+        transaction.set(userRef, {
+          credits: 10,
+          lastCreditReset: serverTimestamp(),
+        });
+        logger.info(`User ${userId} not found, created with 10 credits.`);
+        return 10;
+      }
 
+      const userData = userDoc.data();
+      const { credits, lastCreditReset } = userData;
+      const today = new Date();
+      const lastResetDate = lastCreditReset?.toDate();
+
+      if (!lastResetDate || lastResetDate.toDateString() !== today.toDateString()) {
+        // If credits have not been reset today, reset them to 10.
+        transaction.update(userRef, {
+          credits: 10,
+          lastCreditReset: serverTimestamp(),
+        });
+        logger.info(`Credits reset for user ${userId}. New credits: 10`);
+        return 10;
+      }
+
+      logger.info(`Credits for user ${userId}: ${credits}`);
+      return credits;
+    });
+    logger.info(`Exiting checkAndResetCredits for userId: ${userId} with credits: ${credits}`);
     return credits;
-  });
+  } catch (error) {
+    logger.error(`Error in checkAndResetCredits for userId: ${userId}: ${error.message}`);
+    throw error;
+  }
 };
 
 export { checkAndResetCredits };

@@ -36,6 +36,14 @@ const CourseCreationForm = () => {
 
   const handleGenerateCourse = async (e) => {
     e.preventDefault();
+
+    const trimmedTopic = topic.trim();
+
+    if (!trimmedTopic) {
+      alert('Please enter a topic.');
+      return;
+    }
+
     if (!user) {
       console.error("User not logged in.");
       return;

@@ -10,6 +10,22 @@ const NotificationContext = createContext();
 const audio = new Audio('/notification.mp3'); // Ensure this path is correct
 
 // Create the Provider component
+/**
+ * @typedef {object} Notification
+ * @property {string} id - The unique ID of the notification.
+ * @property {string} message - The notification message.
+ * @property {boolean} isRead - Whether the notification has been read.
+ * @property {Date} createdAt - The timestamp when the notification was created.
+ */
+
+/**
+ * Provides notification context to the application.
+ * Manages fetching, marking as read, clearing individual, and clearing all notifications for the authenticated user.
+ * It also handles playing a sound for new unread notifications.
+ * @param {object} props - The component props.
+ * @param {React.ReactNode} props.children - The child components to be rendered within the provider's scope.
+ * @returns {JSX.Element} The NotificationProvider component.
+ */
 export const NotificationProvider = ({ children }) => {
   const [user] = useAuthState(auth);
   const [notifications, setNotifications] = useState([]);
@@ -55,6 +71,8 @@ export const NotificationProvider = ({ children }) => {
 
       setNotifications(notifs);
       setUnreadCount(newCount); // Update state last
+    }, (error) => {
+      console.error("Error fetching notifications:", error);
     });
 
     return () => unsubscribe();
@@ -64,20 +82,54 @@ export const NotificationProvider = ({ children }) => {
       isBellOpenRef.current = isOpen;
   };
 
+  /**
+   * Marks a specific notification as read in the database.
+   * @param {string} id - The ID of the notification to mark as read.
+   * @returns {Promise<void>} A promise that resolves when the notification is marked as read.
+   */
   const markAsRead = async (id) => {
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new TypeError('Notification ID must be a non-empty string.');
+    }
     const docRef = doc(db, `users/${user.uid}/notifications`, id);
-    await updateDoc(docRef, { isRead: true });
+    try {
+      await updateDoc(docRef, { isRead: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
   };
 
+  /**
+   * Clears (deletes) a specific notification from the database.
+   * @param {string} id - The ID of the notification to clear.
+   * @returns {Promise<void>} A promise that resolves when the notification is cleared.
+   */
   const clearNotification = async (id) => {
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new TypeError('Notification ID must be a non-empty string.');
+    }
     const docRef = doc(db, `users/${user.uid}/notifications`, id);
-    await deleteDoc(docRef);
+    try {
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Error clearing notification:", error);
+    }
   };
 
+  /**
+   * Clears (deletes) all notifications for the current user from the database.
+   * @returns {Promise<void>} A promise that resolves when all notifications are cleared.
+   */
   const clearAll = async () => {
-    notifications.forEach(notif => {
-      if (notif.id) clearNotification(notif.id);
-    });
+    try {
+      await Promise.all(notifications.map(async (notif) => {
+        if (notif.id) {
+          await clearNotification(notif.id);
+        }
+      }));
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+    }
   };
 
   const value = {

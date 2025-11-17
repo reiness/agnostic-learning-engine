@@ -15,7 +15,22 @@ The JSON object MUST strictly adhere to the following format:
 Based on the user's provided topic and desired duration, generate a comprehensive course syllabus in the specified JSON format. Ensure the material for each day is detailed and provides a complete learning text.
 `;
 
+/**
+ * Calls the background function to generate a course.
+ * @param {string} topic - The topic of the course.
+ * @param {'7_days' | '14_days' | '30_days'} duration - The duration of the course.
+ * @returns {Promise<any>} The response from the background function.
+ */
 export async function generateCourse(topic, duration) {
+  if (typeof topic !== 'string' || topic.trim() === '') {
+    throw new TypeError('Topic must be a non-empty string.');
+  }
+
+  const validDurations = ['7_days', '14_days', '30_days'];
+  if (!validDurations.includes(duration)) {
+    throw new TypeError('Duration must be one of "7_days", "14_days", or "30_days".');
+  }
+
   try {
     // This is the special path to our new Netlify Function
     const response = await fetch("/.netlify/functions/generateCourse", {
@@ -27,7 +42,7 @@ export async function generateCourse(topic, duration) {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to fetch from function");
+      throw new Error(`Failed to fetch from function. Status: ${response.status}`);
     }
 
     // The function's body is the JSON string, so we parse it
@@ -36,6 +51,6 @@ export async function generateCourse(topic, duration) {
 
   } catch (error) {
     console.error("Error calling Netlify function:", error);
-    return null;
+    throw error;
   }
 }

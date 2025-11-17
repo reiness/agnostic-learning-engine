@@ -1,7 +1,15 @@
 import { doc, getDoc, updateDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 
+/**
+ * Checks and resets user credits if it's a new day.
+ * @param {string} userId - The ID of the user.
+ * @returns {Promise<number>} The user's current credits.
+ */
 const checkAndResetCredits = async (userId) => {
+  if (typeof userId !== 'string' || userId.trim() === '') {
+    throw new TypeError('Invalid userId provided.');
+  }
   const userRef = doc(db, 'users', userId);
 
   return runTransaction(db, async (transaction) => {

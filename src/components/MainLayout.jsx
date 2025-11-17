@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 
 const MainLayout = ({ sidebarContent, children }) => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const savedState = localStorage.getItem('isSidebarCollapsed');
+    return savedState === 'true' ? true : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isSidebarCollapsed', isSidebarCollapsed);
+  }, [isSidebarCollapsed]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);

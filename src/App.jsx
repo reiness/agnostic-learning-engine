@@ -4,6 +4,8 @@ import logger from './utils/logger';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AdminProtectedRoute from './components/AdminProtectedRoute.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import CoursePage from './pages/CoursePage.jsx';
 import Profile from './pages/Profile.jsx';
 import DeletedCourses from './pages/DeletedCourses.jsx';
@@ -33,6 +35,10 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/deleted-courses" element={<DeletedCourses />} />
             {/* Add future routes like /course/:id here */}
+          </Route>
+
+          <Route element={<AdminProtectedRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
           </Route>
           
           </Routes>

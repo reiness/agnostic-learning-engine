@@ -91,8 +91,8 @@ const restoreCourse = async (courseId) => {
 
       // 1. Create a new document in the 'courses' collection
       const courseRef = doc(db, "courses", courseId);
-      const { deletedAt, userId, ...courseData } = deletedCourseDoc.data(); // Exclude deletedAt and userId
-      transaction.set(courseRef, courseData);
+      const { deletedAt, ...courseData } = deletedCourseDoc.data(); // Only exclude deletedAt
+      transaction.set(courseRef, courseData); // courseData now includes the original userId
 
       // 2. Move subcollections (e.g., 'modules')
       const modulesRef = collection(db, "deleted_courses", courseId, "modules");

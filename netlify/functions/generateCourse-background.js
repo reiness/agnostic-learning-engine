@@ -302,7 +302,8 @@ export const handler = async (event, context) => {
       durationDays: parseInt(duration.replace('_days', '')),
       originalPrompt: topic,
       status: 'active',
-      createdAt: new Date()
+      createdAt: new Date(),
+      moduleCount: courseData.dailyModules.length // Initialize module count
     });
     const newCourseId = newCourseDocRef.id;
     logger.info(`Course saved to Firestore with ID: ${newCourseId}`);

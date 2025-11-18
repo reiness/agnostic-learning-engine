@@ -1,7 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import MainLayout from '../components/MainLayout';
+import MetricCard from '../components/MetricCard';
+import Spinner from '../components/Spinner';
 
 const AdminDashboard = () => {
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch('/.netlify/functions/getAdminDashboardMetrics');
+        const data = await response.json();
+        setMetrics(data);
+      } catch (error) {
+        console.error('Error fetching admin metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, []);
+
   return (
     <MainLayout>
       <div className="container mx-auto p-4">
@@ -9,11 +30,18 @@ const AdminDashboard = () => {
 
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Dashboard Overview</h2>
-          <p>This section will contain an overview of system metrics, user activity, and other key performance indicators.</p>
-          {/* Placeholder for dashboard content */}
-          <div className="bg-gray-100 p-4 rounded-md mt-2">
-            <p>Summary charts and data visualizations will go here.</p>
-          </div>
+          {loading ? (
+            <Spinner />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <MetricCard title="Total Users" value={metrics?.totalUsers} icon="Users" />
+              <MetricCard title="Total Courses" value={metrics?.totalCourses} icon="BookOpen" />
+              <MetricCard title="Total Modules" value={metrics?.totalModules} icon="LayoutGrid" />
+              <MetricCard title="Total Flashcards" value={metrics?.totalFlashcards} icon="Copy" />
+              <MetricCard title="Completed Courses" value={metrics?.totalCompletedCourses} icon="CheckCircle" />
+              <MetricCard title="Daily Active Users" value={metrics?.dailyActiveUsers} icon="Activity" />
+            </div>
+          )}
         </section>
 
         <section>

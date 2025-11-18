@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import logger from './utils/logger.js';
 
 
@@ -77,6 +77,17 @@ export const handler = async (event, context) => {
     // Use 'set' here because this might be the first time flashcards are created for this module
     await flashcardRef.set({ cards: flashcardData.cards });
     logger.info(`Flashcards saved to Firestore for module ID: ${moduleId}`);
+
+    // Increment flashcardCount in the parent module and course documents
+    const moduleDocRef = db.collection('courses').doc(courseId).collection('modules').doc(moduleId);
+    const courseDocRef = db.collection('courses').doc(courseId);
+    const increment = FieldValue.increment(flashcardData.cards.length);
+
+    await Promise.all([
+      moduleDocRef.update({ flashcardCount: increment }),
+      courseDocRef.update({ flashcardCount: increment })
+    ]);
+    logger.info(`Flashcard count incremented for module ID: ${moduleId} and course ID: ${courseId}`);
 
     // 6. Update notification to 'Complete'
     await notifRef.set({ // Use 'set' with merge for safety

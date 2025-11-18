@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import logger from './utils/logger';
 import Login from './pages/Login.jsx';
@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AdminProtectedRoute from './components/AdminProtectedRoute.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminDashboardOverview from './pages/AdminDashboardOverview.jsx';
+import AdminRoleManagement from './pages/AdminRoleManagement.jsx';
 import CoursePage from './pages/CoursePage.jsx';
 import Profile from './pages/Profile.jsx';
 import DeletedCourses from './pages/DeletedCourses.jsx';
@@ -38,7 +40,11 @@ function App() {
           </Route>
 
           <Route element={<AdminProtectedRoute />}>
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<AdminDashboardOverview />} />
+              <Route path="roles" element={<AdminRoleManagement />} />
+            </Route>
           </Route>
           
           </Routes>

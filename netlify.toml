@@ -10,3 +10,9 @@
   command = "npm run dev"
   targetPort = 5173
   port = 8889
+
+[functions]
+ included_files = ["src/firebase.js"]
+
+[functions.aggregateDailyMetrics]
+ schedule = "0 0 * * *"

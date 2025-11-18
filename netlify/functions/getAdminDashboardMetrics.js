@@ -13,15 +13,45 @@ const db = getFirestore();
 
 export const handler = async (event, context) => {
   try {
-    // 1. Total Users Count
+    const { days: daysParam } = event.queryStringParameters || {};
+    const days = parseInt(daysParam, 10); // Can be 7, 30, 90, or 0 for lifetime
+
+    let historicalData = [];
+    let lifetimeMetrics = {};
+
+    if (days > 0) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Normalize to start of today
+
+      const startDate = new Date(now);
+      startDate.setDate(now.getDate() - (days - 1));
+      const startTimestamp = admin.firestore.Timestamp.fromDate(startDate);
+
+      const dailyMetricsSnapshot = await db.collection('daily_metrics')
+        .where('aggregatedAt', '>=', startTimestamp)
+        .orderBy('aggregatedAt', 'asc')
+        .get();
+
+      historicalData = dailyMetricsSnapshot.docs.map(doc => doc.data());
+    } else {
+      // Lifetime metrics calculation
+      const dailyMetricsSnapshot = await db.collection('daily_metrics').get();
+      const allMetrics = dailyMetricsSnapshot.docs.map(doc => doc.data());
+
+      lifetimeMetrics = {
+        totalNewUsers: allMetrics.reduce((acc, curr) => acc + curr.newUsers, 0),
+        totalActiveUsers: allMetrics.reduce((acc, curr) => acc + curr.activeUsers, 0),
+        totalGeneratedCourses: allMetrics.reduce((acc, curr) => acc + curr.generatedCourses, 0),
+      };
+    }
+
+    // Current Metrics (existing logic)
     const usersSnapshot = await db.collection('users').get();
     const totalUsers = usersSnapshot.size;
 
-    // 2. Total Generated Courses
     const coursesSnapshot = await db.collection('courses').get();
     const totalCourses = coursesSnapshot.size;
 
-    // 3. Total Generated Modules & Flashcards
     let totalModules = 0;
     let totalFlashcards = 0;
 
@@ -31,16 +61,13 @@ export const handler = async (event, context) => {
       totalFlashcards += courseData.flashcardCount || 0;
     }
 
-    // 4. Total Completed Courses (assuming a 'user_courses' collection with a 'completed' field)
-    // This is a placeholder and might need adjustment based on actual schema
     const completedCoursesSnapshot = await db.collection('user_courses').where('completed', '==', true).get();
     const totalCompletedCourses = completedCoursesSnapshot.size;
 
-    // 5. Daily Active Users (DAU)
-    // Assuming 'lastLogin' field exists in 'users' collection and is a Firestore Timestamp
+    // Daily Active Users (for current day, as per original logic)
     const twentyFourHoursAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
-    const dauSnapshot = await db.collection('users').where('lastLogin', '>=', twentyFourHoursAgo).get();
-    const dailyActiveUsers = dauSnapshot.size;
+    const currentDailyActiveUsersSnapshot = await db.collection('users').where('lastLogin', '>=', twentyFourHoursAgo).get();
+    const currentDailyActiveUsers = currentDailyActiveUsersSnapshot.size;
 
     return {
       statusCode: 200,
@@ -50,7 +77,8 @@ export const handler = async (event, context) => {
         totalModules,
         totalFlashcards,
         totalCompletedCourses,
-        dailyActiveUsers,
+        dailyActiveUsers: currentDailyActiveUsers,
+        historicalData,
       }),
     };
   } catch (error) {

@@ -35,13 +35,13 @@ export const handler = async (event, context) => {
       historicalData = dailyMetricsSnapshot.docs.map(doc => doc.data());
     } else {
       // Lifetime metrics calculation
-      const dailyMetricsSnapshot = await db.collection('daily_metrics').get();
-      const allMetrics = dailyMetricsSnapshot.docs.map(doc => doc.data());
+      const dailyMetricsSnapshot = await db.collection('daily_metrics').orderBy('aggregatedAt', 'asc').get();
+      historicalData = dailyMetricsSnapshot.docs.map(doc => doc.data());
 
       lifetimeMetrics = {
-        totalNewUsers: allMetrics.reduce((acc, curr) => acc + curr.newUsers, 0),
-        totalActiveUsers: allMetrics.reduce((acc, curr) => acc + curr.activeUsers, 0),
-        totalGeneratedCourses: allMetrics.reduce((acc, curr) => acc + curr.generatedCourses, 0),
+        totalNewUsers: historicalData.reduce((acc, curr) => acc + curr.newUsers, 0),
+        totalActiveUsers: historicalData.reduce((acc, curr) => acc + curr.activeUsers, 0),
+        totalGeneratedCourses: historicalData.reduce((acc, curr) => acc + curr.generatedCourses, 0),
       };
     }
 
@@ -79,6 +79,7 @@ export const handler = async (event, context) => {
         totalCompletedCourses,
         dailyActiveUsers: currentDailyActiveUsers,
         historicalData,
+        lifetimeMetrics,
       }),
     };
   } catch (error) {

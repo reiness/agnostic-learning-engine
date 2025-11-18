@@ -3,6 +3,7 @@ import MetricCard from '../components/MetricCard';
 import Spinner from '../components/Spinner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
+import logger from '../utils/logger';
 
 const AdminDashboardOverview = () => {
   const [metrics, setMetrics] = useState(null);
@@ -17,12 +18,13 @@ const AdminDashboardOverview = () => {
       try {
         const response = await fetch(`/.netlify/functions/getAdminDashboardMetrics?days=${days}`);
         const data = await response.json();
+        logger.info('Fetched data:', data);
         setMetrics(data);
+        setHistoricalData(data.historicalData);
         if (days === 0) {
+          logger.info('Lifetime metrics:', data.lifetimeMetrics);
           setLifetimeMetrics(data.lifetimeMetrics);
-          setHistoricalData([]);
         } else {
-          setHistoricalData(data.historicalData);
           setLifetimeMetrics(null);
         }
       } catch (error) {
@@ -39,20 +41,35 @@ const AdminDashboardOverview = () => {
     return format(new Date(dateString), 'MMM d');
   };
 
+  const handleAggregate = async () => {
+    try {
+      await fetch('/.netlify/functions/aggregateDailyMetrics', { method: 'POST' });
+      alert('Aggregation triggered successfully!');
+    } catch (error) {
+      console.error('Error triggering aggregation:', error);
+      alert('Failed to trigger aggregation.');
+    }
+  };
+
   return (
     <section className="mb-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Dashboard Overview</h2>
-        <select
-          value={days}
-          onChange={(e) => setDays(parseInt(e.target.value, 10))}
-          className="p-2 border rounded-md"
-        >
-          <option value={7}>Last 7 Days</option>
-          <option value={30}>Last 30 Days</option>
-          <option value={90}>Last 90 Days</option>
-          <option value={0}>Lifetime</option>
-        </select>
+        <div>
+          {/* <button onClick={handleAggregate} className="p-2 border rounded-md bg-blue-500 text-white hover:bg-blue-600 mr-4">
+            Aggregate Data
+          </button> */}
+          <select
+            value={days}
+            onChange={(e) => setDays(parseInt(e.target.value, 10))}
+            className="p-2 border rounded-md"
+          >
+            <option value={7}>Last 7 Days</option>
+            <option value={30}>Last 30 Days</option>
+            <option value={90}>Last 90 Days</option>
+            <option value={0}>Lifetime</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -68,55 +85,47 @@ const AdminDashboardOverview = () => {
             <MetricCard title="Daily Active Users" value={metrics?.dailyActiveUsers} icon="Activity" />
           </div>
 
-          {days > 0 ? (
-            <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
-              <div className="p-4 border rounded-md">
-                <h3 className="text-lg font-semibold mb-4">Daily New Users</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={historicalData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={formatDate} />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="newUsers" stroke="#8884d8" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="p-4 border rounded-md">
-                <h3 className="text-lg font-semibold mb-4">Daily Active Users</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={historicalData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={formatDate} />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="activeUsers" stroke="#82ca9d" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="p-4 border rounded-md lg:col-span-2">
-                <h3 className="text-lg font-semibold mb-4">Daily Generated Courses</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={historicalData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={formatDate} />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="generatedCourses" stroke="#ffc658" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
+            <div className="p-4 border rounded-md">
+              <h3 className="text-lg font-semibold mb-4">Daily New Users</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={historicalData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={formatDate} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="newUsers" stroke="#8884d8" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <MetricCard title="Lifetime New Users" value={lifetimeMetrics?.totalNewUsers} icon="Users" />
-              <MetricCard title="Lifetime Active Users" value={lifetimeMetrics?.totalActiveUsers} icon="Activity" />
-              <MetricCard title="Lifetime Generated Courses" value={lifetimeMetrics?.totalGeneratedCourses} icon="BookOpen" />
+            <div className="p-4 border rounded-md">
+              <h3 className="text-lg font-semibold mb-4">Daily Active Users</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={historicalData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={formatDate} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="activeUsers" stroke="#82ca9d" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          )}
+            <div className="p-4 border rounded-md lg:col-span-2">
+              <h3 className="text-lg font-semibold mb-4">Daily Generated Courses</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={historicalData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={formatDate} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="generatedCourses" stroke="#ffc658" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </>
       )}
     </section>

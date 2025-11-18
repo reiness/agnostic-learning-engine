@@ -18,6 +18,7 @@ const Profile = () => {
     credits: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchUserStats = async () => {
@@ -54,6 +55,20 @@ const Profile = () => {
       }
     };
     fetchUserStats();
+
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          const adminRef = doc(db, 'admins', user.email);
+          const adminDoc = await getDoc(adminRef);
+          setIsAdmin(adminDoc.exists());
+        } catch (err) {
+          console.error("Error checking admin status in Profile:", err);
+          setIsAdmin(false);
+        }
+      }
+    };
+    checkAdminStatus();
   }, [user]);
 
   const sidebarContent = (
@@ -105,7 +120,7 @@ const Profile = () => {
             <Link to="/deleted-courses">
               <Button variant="outline">View Deleted Courses</Button>
             </Link>
-            {user && user.email === 'rdhpndh@gmail.com' && (
+            {user && isAdmin && (
               <Link to="/admin">
                 <Button className="ml-4 bg-blue-500 text-white hover:bg-blue-600">Go to Admin Page</Button>
               </Link>

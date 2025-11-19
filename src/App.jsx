@@ -8,6 +8,7 @@ import AdminProtectedRoute from './components/AdminProtectedRoute.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminDashboardOverview from './pages/AdminDashboardOverview.jsx';
 import AdminRoleManagement from './pages/AdminRoleManagement.jsx';
+import AdminUserManagement from './pages/AdminUserManagement.jsx';
 import CoursePage from './pages/CoursePage.jsx';
 import Profile from './pages/Profile.jsx';
 import DeletedCourses from './pages/DeletedCourses.jsx';
@@ -44,6 +45,7 @@ function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<AdminDashboardOverview />} />
               <Route path="roles" element={<AdminRoleManagement />} />
+              <Route path="users" element={<AdminUserManagement />} />
             </Route>
           </Route>
           

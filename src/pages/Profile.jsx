@@ -120,11 +120,6 @@ const Profile = () => {
             <Link to="/deleted-courses">
               <Button variant="outline">View Deleted Courses</Button>
             </Link>
-            {user && isAdmin && (
-              <Link to="/admin">
-                <Button className="ml-4 bg-blue-500 text-white hover:bg-blue-600">Go to Admin Page</Button>
-              </Link>
-            )}
           </div>
         </div>
       </MainLayout>

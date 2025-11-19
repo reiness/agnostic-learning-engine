@@ -9,9 +9,10 @@ import Spinner from '../components/Spinner';
 import Icon from '../components/Icon';
 import AnimatedPage from '../components/AnimatedPage';
 import { Button } from '@/components/ui/button';
- 
+import { logActivity } from '../services/activityService';
+
 const CoursePage = () => {
-  const { courseId } = useParams();
+const { courseId } = useParams();
   const [user] = useAuthState(auth);
   const navigate = useNavigate();
   const [courseTitle, setCourseTitle] = useState('');
@@ -173,6 +174,7 @@ const CoursePage = () => {
       const updatedModules = modules.map(m => m.id === selectedModule.id ? { ...m, isCompleted: true } : m);
       setModules(updatedModules);
       setSelectedModule({ ...selectedModule, isCompleted: true });
+      await logActivity(user.uid, user.email, 'complete_module', { courseId, moduleId: selectedModule.id });
       alert("Module marked as complete!");
     } catch (error) {
       console.error("Error marking module as complete:", error);
@@ -284,6 +286,7 @@ const CoursePage = () => {
                   if (window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
                     try {
                       await deleteCourse(courseId);
+                      await logActivity(user.uid, user.email, 'delete_course', { courseId });
                       navigate('/dashboard'); // Redirect to dashboard after deletion
                     } catch (error) {
                       console.error("Error deleting course:", error);

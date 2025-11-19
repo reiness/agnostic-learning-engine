@@ -16,6 +16,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { generateCourse } from '../services/gemini';
 import { checkAndResetCredits } from '../services/credits';
 import Spinner from './Spinner'; // Import Spinner component
+import { logActivity } from '../services/activityService';
 
 const CourseCreationForm = () => {
   const [user] = useAuthState(auth);
@@ -74,6 +75,8 @@ const CourseCreationForm = () => {
 
       // Show a success message
       alert("Course generation started! We'll notify you when it's ready.");
+      // Log the activity
+      await logActivity(user.uid, user.email, 'generate_course', { topic: trimmedTopic, duration });
       // Reset the form
       setTopic('');
       setDuration('7_days');

@@ -29,6 +29,16 @@ const AdminDashboard = () => {
           Role Access Management
         </Button>
       </Link>
+      <Link to="/admin/users">
+        <Button
+          variant="ghost"
+          className={`w-full justify-start text-wrap break-words h-auto py-2 text-left ${
+            location.pathname === '/admin/users' ? 'bg-gray-200' : ''
+          }`}
+        >
+          User Management
+        </Button>
+      </Link>
     </nav>
   );
 

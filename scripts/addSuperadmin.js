@@ -26,12 +26,12 @@ if (!admin.apps.length) {
 const db = getFirestore();
 
 /**
- * Sets a user's role to 'Admin' in Firestore.
- * @param {string} email The email address of the user to make an Admin.
+ * Sets a user's role to 'Superadmin' in Firestore.
+ * @param {string} email The email address of the user to make a Superadmin.
  */
-async function setAdmin(email) {
+async function setSuperadmin(email) {
   if (!email) {
-    console.error('Error: No email provided. Usage: node scripts/addAdmin.js your_email@example.com');
+    console.error('Error: No email provided. Usage: node scripts/addSuperadmin.js your_email@example.com');
     process.exit(1);
   }
 
@@ -41,16 +41,16 @@ async function setAdmin(email) {
     const userRef = db.collection('users').doc(userId);
 
     await userRef.set({
-      role: 'Admin',
+      role: 'Superadmin',
     }, { merge: true });
 
-    console.log(`User '${email}' has been granted Admin privileges.`);
+    console.log(`User '${email}' has been granted Superadmin privileges.`);
   } catch (error) {
-    console.error(`Error setting Admin for '${email}':`, error);
+    console.error(`Error setting Superadmin for '${email}':`, error);
     process.exit(1);
   }
 }
 
 // Get email from command line arguments
 const emailToSet = process.argv[2];
-setAdmin(emailToSet);
+setSuperadmin(emailToSet);

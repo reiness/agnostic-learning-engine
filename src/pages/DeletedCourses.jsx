@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { History } from 'lucide-react';
+import { logActivity } from '../services/activityService';
 
 const DeletedCourses = () => {
   const [user] = useAuthState(auth);
@@ -60,6 +61,7 @@ const DeletedCourses = () => {
       setRestoringCourseId(courseId);
       try {
         await restoreCourse(courseId);
+        await logActivity(user.uid, user.email, 'restore_course', { courseId });
         setDeletedCourses(deletedCourses.filter(course => course.id !== courseId));
       } catch (error) {
         console.error("Error restoring course:", error);

@@ -93,8 +93,8 @@ const DeletedCourses = () => {
               {deletedCourses.length > 0 ? (
                 deletedCourses.map(course => (
                   <Card key={course.id} className="relative">
-                    <CardHeader>
-                      <CardTitle className="truncate">{course.title}</CardTitle>
+                    <CardHeader className="min-h-[6rem]">
+                      <CardTitle className="text-wrap break-words">{course.title}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>

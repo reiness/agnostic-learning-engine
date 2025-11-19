@@ -81,7 +81,7 @@ const Dashboard = () => {
             {loading ? <Spinner /> : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {courses.length > 0 ? (
-                  courses.map(course => (
+                  courses.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0)).map(course => (
                     <Card
                       key={course.id}
                       className={`relative transition-all duration-700 ease-in-out ${
@@ -90,9 +90,9 @@ const Dashboard = () => {
                           : 'opacity-100 translate-y-0 max-h-96'
                       }`}
                     >
-                      <CardHeader className="flex flex-row items-start justify-between space-x-2">
+                      <CardHeader className="flex flex-row items-start justify-between space-x-2 min-h-[6rem]">
                         <Link to={`/course/${course.id}`} className="flex-grow overflow-hidden">
-                          <CardTitle className="truncate">{course.title}</CardTitle>
+                          <CardTitle className="text-wrap break-words">{course.title}</CardTitle>
                           <p className="text-sm text-muted-foreground mt-1">Created: {formatDate(course.createdAt)}</p>
                         </Link>
                         <Button
@@ -128,7 +128,7 @@ const Dashboard = () => {
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         title="Delete Course"
-        message="Are you sure you want to delete this course? This action cannot be undone."
+        message="Are you sure you want to delete this course?"
         confirmText="Delete"
         confirmVariant="destructive"
       />

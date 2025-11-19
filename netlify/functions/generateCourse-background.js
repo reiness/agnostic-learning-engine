@@ -390,13 +390,15 @@ export const handler = async (event, context) => {
   } catch (error) {
     logger.error(`Error generating course for user ${verifiedUserId} on topic ${topic}: ${error.message}`, error);
     // Use 'set' to create a 'failed' notification
-    await notifRef.set({
+    const failurePayload = {
       message: `Failed to generate course: ${topic}. Please try again.`,
       status: "failed",
       createdAt: new Date(),
       type: "course_generation",
       isRead: false
-    });
+    };
+    logger.info("Writing failure notification with payload:", JSON.stringify(failurePayload));
+    await notifRef.set(failurePayload);
   }
   logger.info("generateCourse-background function finished.");
 };

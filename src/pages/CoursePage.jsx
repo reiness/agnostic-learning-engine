@@ -368,7 +368,7 @@ const [flashcards, setFlashcards] = useState([]);
           }
         }}
         title="Delete Course"
-        message="Are you sure you want to delete this course? This action cannot be undone."
+        message="Are you sure you want to delete this course?"
         confirmText="Delete"
         confirmVariant="destructive"
       />

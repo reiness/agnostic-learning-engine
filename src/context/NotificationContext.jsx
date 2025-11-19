@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase.js'; // Ensure correct path
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import toast from 'react-hot-toast';
 
 // Create the context
 const NotificationContext = createContext();
@@ -32,6 +33,7 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const prevUnreadCountRef = useRef(0);
   const isBellOpenRef = useRef(false); // Ref to track if bell is open
+  const processedIdsRef = useRef(new Set()); // Ref to track shown toasts
 
   useEffect(() => {
     if (!user) {
@@ -47,38 +49,45 @@ export const NotificationProvider = ({ children }) => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      let newCount = 0;
-      const notifs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        if (!data.isRead) {
-          newCount++;
-        }
-        return { id: doc.id, ...data };
-      });
+      const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const newCount = notifs.filter(n => !n.isRead).length;
 
-      // --- NEW SOUND LOGIC V2 ---
-      // Check if the unread count increased AND if the bell is closed
-      if (newCount > prevUnreadCountRef.current && !isBellOpenRef.current) {
-         // Play sound but catch the error if browser blocks it
-         audio.play().catch(error => {
-            // Log warning if autoplay fails, but don't crash
-            console.warn("Audio play failed (likely due to browser policy):", error);
-         });
-      }
-      
-      prevUnreadCountRef.current = newCount;
-      // --- END NEW LOGIC V2 ---
+      // --- Toast & Sound Logic ---
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const notification = change.doc.data();
+
+          if (notification.status === 'failed') {
+            const notificationTime = notification.createdAt.toDate();
+            const now = Timestamp.now().toDate();
+            const secondsSinceNotification = (now.getTime() - notificationTime.getTime()) / 1000;
+
+            if (secondsSinceNotification >= 0 && secondsSinceNotification < 15) {
+                if (!processedIdsRef.current.has(change.doc.id)) {
+                    toast.error(notification.message || "A background process failed. Please check your notifications.");
+                    processedIdsRef.current.add(change.doc.id);
+                }
+            }
+          }
+          else if (change.type === "added" && !isBellOpenRef.current) {
+            audio.play().catch(error => {
+              console.warn("Audio play failed (likely due to browser policy):", error);
+            });
+          }
+        }
+      });
+      // --- END Toast & Sound Logic ---
 
       setNotifications(notifs);
-      setUnreadCount(newCount); // Update state last
+      setUnreadCount(newCount);
     }, (error) => {
       console.error("Error fetching notifications:", error);
     });
 
     return () => unsubscribe();
-  }, [user]); // Removed notifications from dependencies
+  }, [user]);
 
-  const setIsBellOpen = (isOpen) => { // Function to update the ref
+  const setIsBellOpen = (isOpen) => {
       isBellOpenRef.current = isOpen;
   };
 
@@ -138,7 +147,7 @@ export const NotificationProvider = ({ children }) => {
     markAsRead,
     clearNotification,
     clearAll,
-    setIsBellOpen // Expose the function to update the ref
+    setIsBellOpen
   };
 
   return (

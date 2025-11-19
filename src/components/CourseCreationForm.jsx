@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, doc, writeBatch, runTransaction } from 'firebase/firestore';
 import logger from '../utils/logger';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -11,11 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { db, auth } from '../firebase';
+import { auth } from '../firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { generateCourse } from '../services/gemini';
+import toast from 'react-hot-toast'; // Import react-hot-toast directly
 import { checkAndResetCredits } from '../services/credits';
-import Spinner from './Spinner'; // Import Spinner component
+import Spinner from './Spinner';
 import { logActivity } from '../services/activityService';
 
 const CourseCreationForm = () => {
@@ -24,10 +23,6 @@ const CourseCreationForm = () => {
   const [duration, setDuration] = useState('7_days');
   const [isLoading, setIsLoading] = useState(false);
   const [credits, setCredits] = useState(0);
-
-  useEffect(() => {
-    logger.debug('CourseCreationForm state changed:', { topic, duration, isLoading, credits });
-  }, [topic, duration, isLoading, credits]);
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -39,30 +34,33 @@ const CourseCreationForm = () => {
     fetchCredits();
   }, [user]);
 
-  const handleGenerateCourse = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     logger.info('Course creation form submitted.');
 
     const trimmedTopic = topic.trim();
 
     if (!trimmedTopic) {
-      alert('Please enter a topic.');
+      toast.error('Please enter a topic.');
       return;
     }
 
     if (!user) {
-      console.error("User not logged in.");
+      toast.error('You must be logged in to create a course.');
       return;
     }
 
     if (credits <= 0) {
-      alert("You have insufficient credits to generate a course.");
+      toast.error("You have insufficient credits to generate a course.");
       return;
     }
 
     setIsLoading(true);
+    // This is the ONLY toast this component will show.
+    // The final result (success or failure) is handled by the NotificationContext listener.
+    toast.success("Course generation started! Check the notification bell for updates.");
+
     try {
-      // "Fire and Forget" call to our new background function
       const token = await user.getIdToken();
       await fetch("/.netlify/functions/generateCourse-background", {
         method: "POST",
@@ -71,34 +69,29 @@ const CourseCreationForm = () => {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          topic: topic,
+          topic: trimmedTopic,
           duration: duration,
           userId: user.uid
         })
       });
 
-      // Show a success message
-      alert("Course generation started! We'll notify you when it's ready.");
-      // Log the activity
+      // We optimistically log the activity and reset the form.
       await logActivity(user.uid, user.email, 'generate_course', { topic: trimmedTopic, duration });
-      // Reset the form
       setTopic('');
       setDuration('7_days');
 
     } catch (error) {
+      // This catch block is for network errors only (e.g., user is offline).
       logger.error('Error triggering course generation:', error);
-      alert("Error: Could not start the course generation. Please try again.");
+      toast.error("The request to start course generation failed. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleGenerateCourse} className="p-8 bg-card text-card-foreground rounded-xl shadow-2xl space-y-6">
+    <form onSubmit={handleSubmit} className="p-8 bg-card text-card-foreground rounded-xl shadow-2-xl space-y-6">
       <h2 className="text-3xl font-bold">Create a New Course</h2>
-      {/* <p className="text-sm text-muted-foreground">
-        1 course generation costs 1 credit. Your credits reset daily.
-      </p> */}
       <div className="space-y-2">
         <Label htmlFor="courseTopic">What do you want to learn?</Label>
         <Textarea

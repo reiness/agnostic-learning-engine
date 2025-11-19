@@ -91,9 +91,14 @@ const Profile = () => {
               <h1 className="text-4xl font-bold text-foreground">
                 {user ? user.displayName : 'Learner'}'s Profile
               </h1>
-              <p className="text-lg text-muted-foreground mt-2">
-                Date Joined: {user ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
-              </p>
+              <div className="flex items-center space-x-4 mt-2">
+                <p className="text-lg text-muted-foreground">
+                  Date Joined: {user ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
+                </p>
+                <Link to="/deleted-courses">
+                  <Button variant="destructive">View Deleted Courses</Button>
+                </Link>
+              </div>
             </div>
           </header>
           {isLoading ? <Spinner /> : (
@@ -116,11 +121,6 @@ const Profile = () => {
               </div> */}
             </div>
           )}
-          <div className="mt-8">
-            <Link to="/deleted-courses">
-              <Button variant="outline">View Deleted Courses</Button>
-            </Link>
-          </div>
         </div>
       </MainLayout>
     </AnimatedPage>

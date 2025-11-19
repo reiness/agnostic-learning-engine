@@ -63,9 +63,13 @@ const CourseCreationForm = () => {
     setIsLoading(true);
     try {
       // "Fire and Forget" call to our new background function
+      const token = await user.getIdToken();
       await fetch("/.netlify/functions/generateCourse-background", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           topic: topic,
           duration: duration,

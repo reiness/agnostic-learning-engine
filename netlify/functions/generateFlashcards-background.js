@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import logger from './utils/logger.js';
 
 
@@ -48,10 +49,68 @@ The JSON format must be strictly this:
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
   logger.info("generateFlashcards-background function started.");
-  const { lessonMaterial, courseId, moduleId, userId, moduleTitle } = JSON.parse(event.body);
+
+  // --- Security Check: Validate User Identity ---
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.warn("Unauthorized access attempt: No Authorization header found.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  let verifiedUserId;
+
+  try {
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    verifiedUserId = decodedToken.uid;
+  } catch (error) {
+    logger.error("Error verifying auth token:", error);
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Invalid authentication token.' }),
+    };
+  }
+  // ----------------------------------------------
+
+  let lessonMaterial, courseId, moduleId, moduleTitle;
+
+  try {
+    if (!event.body) {
+        throw new Error("Empty request body");
+    }
+    const body = JSON.parse(event.body);
+    lessonMaterial = body.lessonMaterial;
+    courseId = body.courseId;
+    moduleId = body.moduleId;
+    moduleTitle = body.moduleTitle;
+  } catch (error) {
+    logger.error("Invalid JSON in request body:", error);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Invalid JSON payload: ' + error.message }),
+    };
+  }
+  
+  const missingFields = [];
+  if (!lessonMaterial || typeof lessonMaterial !== 'string') missingFields.push('lessonMaterial');
+  if (!courseId || typeof courseId !== 'string') missingFields.push('courseId');
+  if (!moduleId) missingFields.push('moduleId');
+  if (!moduleTitle || typeof moduleTitle !== 'string') missingFields.push('moduleTitle');
+
+  if (missingFields.length > 0) {
+      logger.error(`Missing or invalid required fields: ${missingFields.join(', ')}`);
+      return {
+          statusCode: 400,
+          body: JSON.stringify({ message: `Missing or invalid required fields: ${missingFields.join(', ')}` })
+      };
+  }
 
   // 1. Define notification reference
-  const notifRef = db.collection(`users/${userId}/notifications`).doc();
+  // USE VERIFIED USER ID
+  const notifRef = db.collection(`users/${verifiedUserId}/notifications`).doc();
   // 2. Define flashcard document reference
   const flashcardRef = db.doc(`courses/${courseId}/flashcards/${moduleId}`);
 
@@ -65,7 +124,7 @@ export const handler = async (event, context) => {
       relatedDocId: moduleId, // Link to the module
       isRead: false
     });
-    logger.info(`Generating flashcards for user ${userId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
+    logger.info(`Generating flashcards for user ${verifiedUserId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
 
     // 4. Call Gemini API
     const result = await model.generateContent([FLASHCARD_GENERATOR_PROMPT, lessonMaterial]);
@@ -102,7 +161,7 @@ export const handler = async (event, context) => {
     logger.info(`Flashcard generation complete for module ID: ${moduleId}. Notification updated.`);
 
   } catch (error) {
-    logger.error(`Error generating flashcards for user ${userId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
+    logger.error(`Error generating flashcards for user ${verifiedUserId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
     // Use 'set' to create a 'failed' notification
     await notifRef.set({
       message: `Failed to generate flashcards for ${moduleTitle}. Please try again.`,

@@ -1,3 +1,8 @@
+// NOTE: This file is duplicated in frontend/backend. Please keep them in sync.
+/**
+ * NOTE: This logger implementation is duplicated in src/utils/logger.js
+ * Please ensure any changes are applied to both files to maintain consistency.
+ */
 const LOG_LEVELS = {
   TRACK: 0,
   TRACE: 1,

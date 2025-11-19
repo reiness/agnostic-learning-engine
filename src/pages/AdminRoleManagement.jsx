@@ -41,7 +41,7 @@ const AdminRoleManagement = () => {
 
   return (
     <section>
-      <h2 className="text-2xl font-semibold mb-4">Role Access Management</h2>
+      <h2 className="text-2xl font-semibold mb-4">Admin Management</h2>
       <p>Manage admin roles and permissions within the application.</p>
       <div className="mt-6">
         <table className="min-w-full bg-white">

@@ -26,7 +26,7 @@ const AdminDashboard = () => {
             location.pathname === '/admin/roles' ? 'bg-gray-200' : ''
           }`}
         >
-          Role Access Management
+          Admin Management
         </Button>
       </Link>
       <Link to="/admin/users">

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import logger from './utils/logger.js';
 
 
@@ -301,10 +302,69 @@ Write naturally and contextually—your structural blueprint is internalized gui
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
   logger.info("generateLesson-background function started.");
-  const { courseId, moduleId, userId, moduleTitle, moduleDescription } = JSON.parse(event.body);
+
+  // --- Security Check: Validate User Identity ---
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.warn("Unauthorized access attempt: No Authorization header found.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  let verifiedUserId;
+
+  try {
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    verifiedUserId = decodedToken.uid;
+  } catch (error) {
+    logger.error("Error verifying auth token:", error);
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Invalid authentication token.' }),
+    };
+  }
+  // ----------------------------------------------
+
+  let courseId, moduleId, moduleTitle, moduleDescription;
+  try {
+    if (!event.body) {
+       throw new Error("Empty request body");
+    }
+    const body = JSON.parse(event.body);
+    courseId = body.courseId;
+    moduleId = body.moduleId;
+    moduleTitle = body.moduleTitle;
+    moduleDescription = body.moduleDescription;
+  } catch (error) {
+    logger.error("Invalid JSON in request body:", error);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Invalid JSON payload: ' + error.message }),
+    };
+  }
+  
+  // Input validation
+  const missingFields = [];
+  if (!courseId || typeof courseId !== 'string') missingFields.push('courseId');
+  if (!moduleId) missingFields.push('moduleId');
+  if (!moduleTitle || typeof moduleTitle !== 'string') missingFields.push('moduleTitle');
+  // moduleDescription is optional but good to have, won't fail if missing but logged warning might be useful or default value
+  
+  if (missingFields.length > 0) {
+     logger.error(`Missing or invalid required fields: ${missingFields.join(', ')}`);
+     return {
+         statusCode: 400,
+         body: JSON.stringify({ message: `Missing or invalid required fields: ${missingFields.join(', ')}` })
+     };
+  }
+
 
   // 1. Define the notification reference *first*
-  const notifRef = db.collection(`users/${userId}/notifications`).doc();
+  // USE VERIFIED USER ID
+  const notifRef = db.collection(`users/${verifiedUserId}/notifications`).doc();
 
   try {
     // 2. Create the 'Generating' notification
@@ -316,7 +376,7 @@ export const handler = async (event, context) => {
       relatedDocId: moduleId,
       isRead: false
     });
-    logger.info(`Generating lesson for user ${userId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
+    logger.info(`Generating lesson for user ${verifiedUserId}, course ${courseId}, module ${moduleId}: ${moduleTitle}`);
 
     // 3. Call Gemini API (The long-running task)
     const userPrompt = `Course Title: ${courseId}\nModule Title: ${moduleTitle}\nModule Description: ${moduleDescription}`;
@@ -341,7 +401,7 @@ export const handler = async (event, context) => {
     logger.info("Notification set/merged. --- END ---");
 
 } catch (error) {
-    logger.error(`Error generating lesson for user ${userId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
+    logger.error(`Error generating lesson for user ${verifiedUserId}, course ${courseId}, module ${moduleId}: ${error.message}`, error);
     
     // This 'set' call will fix the error
     await notifRef.set({

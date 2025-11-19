@@ -1,4 +1,8 @@
 // src/utils/logger.js
+/**
+ * NOTE: This logger implementation is duplicated in netlify/functions/utils/logger.js
+ * Please ensure any changes are applied to both files to maintain consistency.
+ */
 
 const LOG_LEVELS = {
   TRACK: 0,

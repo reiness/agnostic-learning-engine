@@ -8,21 +8,23 @@ import MainLayout from '../components/MainLayout';
 import Spinner from '../components/Spinner';
 import Icon from '../components/Icon';
 import AnimatedPage from '../components/AnimatedPage';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
 import { logActivity } from '../services/activityService';
 
 const CoursePage = () => {
 const { courseId } = useParams();
-  const [user] = useAuthState(auth);
-  const navigate = useNavigate();
-  const [courseTitle, setCourseTitle] = useState('');
-  const [modules, setModules] = useState([]);
-  const [selectedModule, setSelectedModule] = useState(null);
-  const [loadingModuleId, setLoadingModuleId] = useState(null); // This state controls the spinner UI
-  const [isCourseLoading, setIsCourseLoading] = useState(true);
-  const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
-  const [flashcards, setFlashcards] = useState([]);
+const [user] = useAuthState(auth);
+const navigate = useNavigate();
+const [courseTitle, setCourseTitle] = useState('');
+const [modules, setModules] = useState([]);
+const [selectedModule, setSelectedModule] = useState(null);
+const [loadingModuleId, setLoadingModuleId] = useState(null); // This state controls the spinner UI
+const [isCourseLoading, setIsCourseLoading] = useState(true);
+const [isFlashcardLoading, setIsFlashcardLoading] = useState(false);
+const [flashcards, setFlashcards] = useState([]);
   const loadingModuleIdRef = useRef(null); // <-- ADD THIS REF
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
  
   useEffect(() => {
     if (!courseId) return;
@@ -140,9 +142,13 @@ const { courseId } = useParams();
 
     try {
       // "Fire and Forget" call to the background function
+      const token = await user.getIdToken();
       await fetch("/.netlify/functions/generateFlashcards-background", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           lessonMaterial: selectedModule.learningMaterial,
           courseId: courseId,
@@ -215,9 +221,13 @@ const { courseId } = useParams();
 
     // 4. "Fire and Forget" call to our new background function
     try {
+      const token = await user.getIdToken();
       await fetch("/.netlify/functions/generateLesson-background", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           courseId: courseId,
           moduleId: module.id,
@@ -282,18 +292,7 @@ const { courseId } = useParams();
                 )}
               </div>
               <Button
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-                    try {
-                      await deleteCourse(courseId);
-                      await logActivity(user.uid, user.email, 'delete_course', { courseId });
-                      navigate('/dashboard'); // Redirect to dashboard after deletion
-                    } catch (error) {
-                      console.error("Error deleting course:", error);
-                      alert("Failed to delete course. Please try again.");
-                    }
-                  }
-                }}
+                onClick={() => setShowDeleteModal(true)}
                 variant="destructive"
               >
                 Delete Course
@@ -355,6 +354,24 @@ const { courseId } = useParams();
           </div>
         )}
       </MainLayout>
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={async () => {
+          try {
+            await deleteCourse(courseId);
+            await logActivity(user.uid, user.email, 'delete_course', { courseId });
+            navigate('/dashboard'); // Redirect to dashboard after deletion
+          } catch (error) {
+            console.error("Error deleting course:", error);
+            alert("Failed to delete course. Please try again.");
+          }
+        }}
+        title="Delete Course"
+        message="Are you sure you want to delete this course? This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="destructive"
+      />
     </AnimatedPage>
   );
 };

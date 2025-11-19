@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext.jsx';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -50,7 +50,9 @@ const NotificationBell = () => {
               notifications.map(notif => (
                 <div
                   key={notif.id}
-                  className="w-full text-left p-4 border-b hover:bg-gray-50 flex"
+                  className={`w-full text-left p-4 border-b hover:bg-gray-50 flex items-start ${
+                    notif.status === 'failed' ? 'bg-red-50 hover:bg-red-100' : ''
+                  }`}
                   onClick={() => {
                     if (notif.link) {
                       navigate(notif.link);
@@ -58,8 +60,19 @@ const NotificationBell = () => {
                     }
                   }}
                 >
+                  <div className="mr-3 mt-1">
+                    {notif.status === 'complete' ? (
+                      <CheckCircle className="text-green-500" size={20} />
+                    ) : notif.status === 'failed' ? (
+                      <XCircle className="text-red-500" size={20} />
+                    ) : (
+                      <Info className="text-blue-500" size={20} />
+                    )}
+                  </div>
                   <div className="flex-grow">
-                    <p className="text-sm">{notif.message}</p>
+                    <p className={`text-sm ${notif.status === 'failed' ? 'text-red-700 font-medium' : ''}`}>
+                      {notif.message}
+                    </p>
                     <span className="text-xs text-gray-400">
                       {notif.createdAt ? formatDistanceToNow(notif.createdAt.toDate()) : 'Just now'} ago
                     </span>

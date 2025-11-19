@@ -1,10 +1,17 @@
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { logActivity } from './activityService';
 
 export const getUsers = async () => {
   try {
-    const response = await fetch('/.netlify/functions/getUsers');
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : null;
+    
+    const response = await fetch('/.netlify/functions/getUsers', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch users');
     }
@@ -30,7 +37,14 @@ export const removeUserAccess = async (userId, userEmail, adminId, adminEmail) =
 
 export const getAllUsers = async () => {
   try {
-    const response = await fetch('/.netlify/functions/getAllUsers');
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : null;
+
+    const response = await fetch('/.netlify/functions/getAllUsers', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch all users');
     }

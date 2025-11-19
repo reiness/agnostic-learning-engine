@@ -4,6 +4,7 @@ import Spinner from '../components/Spinner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import logger from '../utils/logger';
+import { auth } from '../firebase';
 
 const AdminDashboardOverview = () => {
   const [metrics, setMetrics] = useState(null);
@@ -16,7 +17,12 @@ const AdminDashboardOverview = () => {
     const fetchMetrics = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/.netlify/functions/getAdminDashboardMetrics?days=${days}`);
+        const token = await auth.currentUser?.getIdToken();
+        const response = await fetch(`/.netlify/functions/getAdminDashboardMetrics?days=${days}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const data = await response.json();
         logger.info('Fetched data:', data);
         setMetrics(data);

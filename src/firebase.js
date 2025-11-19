@@ -72,7 +72,6 @@ const deleteCourse = async (courseId) => {
     batch.delete(courseRef);
 
     await batch.commit();
-    console.log("Course moved to deleted_courses successfully!");
   } catch (error) {
     console.error("Error deleting course:", error);
     throw error;
@@ -106,7 +105,6 @@ const restoreCourse = async (courseId) => {
       // 3. Delete the document from the 'deleted_courses' collection
       transaction.delete(deletedCourseRef);
     });
-    console.log("Course restored successfully!");
   } catch (error) {
     console.error("Error restoring course:", error);
     throw error;

@@ -1,4 +1,5 @@
 import logger from '../utils/logger';
+import { auth } from '../firebase'; // Import auth
 
 export const COURSE_ARCHITECT_PROMPT = `
 You are an expert curriculum designer. Your task is to create a progressive, day-by-day learning syllabus based on a given topic and duration.
@@ -38,11 +39,17 @@ export async function generateCourse(topic, duration) {
     }
 
     // This is the special path to our new Netlify Function
+    const token = await auth.currentUser?.getIdToken();
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch("/.netlify/functions/generateCourse", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: headers,
       body: JSON.stringify({ topic, duration }),
     });
 

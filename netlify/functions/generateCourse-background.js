@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import logger from './utils/logger.js';
 
 // --- Initialize Firebase Admin (for backend) ---
@@ -270,11 +271,63 @@ Before outputting, verify:
 // --- The Main Function Handler ---
 export const handler = async (event, context) => {
   logger.info("generateCourse-background function started.");
-  // Get data from the frontend
-  const { topic, duration, userId } = JSON.parse(event.body);
-  
+
+  // --- Security Check: Validate User Identity ---
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    logger.warn("Unauthorized access attempt: No Authorization header found.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  let verifiedUserId;
+
+  try {
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    verifiedUserId = decodedToken.uid;
+  } catch (error) {
+    logger.error("Error verifying auth token:", error);
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Invalid authentication token.' }),
+    };
+  }
+  // ----------------------------------------------
+
+  let topic, duration;
+  try {
+    if (!event.body) {
+      throw new Error("Empty request body");
+    }
+    const body = JSON.parse(event.body);
+    topic = body.topic;
+    duration = body.duration;
+  } catch (error) {
+    logger.error("Invalid JSON in request body:", error);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Invalid JSON payload: ' + error.message }),
+    };
+  }
+
+  const missingFields = [];
+  if (!topic || typeof topic !== 'string') missingFields.push('topic');
+  if (!duration || typeof duration !== 'string') missingFields.push('duration');
+
+  if (missingFields.length > 0) {
+    logger.error(`Missing or invalid required fields: ${missingFields.join(', ')}`);
+    return {
+        statusCode: 400,
+        body: JSON.stringify({ message: `Missing or invalid required fields: ${missingFields.join(', ')}` })
+    };
+  }
+
   // 1. Define the notification reference
-  const notifRef = db.collection(`users/${userId}/notifications`).doc();
+  // USE VERIFIED USER ID
+  const notifRef = db.collection(`users/${verifiedUserId}/notifications`).doc();
 
   try {
     // 2. Create the 'Generating' notification
@@ -285,7 +338,7 @@ export const handler = async (event, context) => {
       type: "course_generation",
       isRead: false
     });
-    logger.info(`Generating course for user ${userId} on topic: ${topic}, duration: ${duration}`);
+    logger.info(`Generating course for user ${verifiedUserId} on topic: ${topic}, duration: ${duration}`);
 
     // 3. Call Gemini API (The long-running task)
     const userPrompt = `Topic: ${topic}\nDuration: ${duration}`;
@@ -297,7 +350,7 @@ export const handler = async (event, context) => {
     // 4. Save the course to Firestore
     const coursesRef = db.collection('courses');
     const newCourseDocRef = await coursesRef.add({
-      userId: userId,
+      userId: verifiedUserId,
       title: courseData.title,
       durationDays: parseInt(duration.replace('_days', '')),
       originalPrompt: topic,
@@ -335,7 +388,7 @@ export const handler = async (event, context) => {
     logger.info(`Course generation complete for course ID: ${newCourseId}. Notification updated.`);
 
   } catch (error) {
-    logger.error(`Error generating course for user ${userId} on topic ${topic}: ${error.message}`, error);
+    logger.error(`Error generating course for user ${verifiedUserId} on topic ${topic}: ${error.message}`, error);
     // Use 'set' to create a 'failed' notification
     await notifRef.set({
       message: `Failed to generate course: ${topic}. Please try again.`,

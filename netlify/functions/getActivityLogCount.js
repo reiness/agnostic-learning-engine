@@ -9,11 +9,35 @@ if (!admin.apps.length) {
 }
 
 export const handler = async (event, context) => {
-  const { userId } = JSON.parse(event.body);
+  // --- Security Check: Validate User Identity ---
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.warn("Unauthorized access attempt: No Authorization header found.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  let verifiedUserId;
 
   try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    verifiedUserId = decodedToken.uid;
+  } catch (error) {
+    console.error("Error verifying auth token:", error);
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Invalid authentication token.' }),
+    };
+  }
+  // ----------------------------------------------
+
+  try {
+    // Note: We ignore any userId sent in the body and use verifiedUserId
     const db = admin.firestore();
-    const snapshot = await db.collection('activity_logs').where('userId', '==', userId).get();
+    const snapshot = await db.collection('activity_logs').where('userId', '==', verifiedUserId).get();
     const count = snapshot.size;
 
     return {

@@ -10,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { History } from 'lucide-react';
 import { logActivity } from '../services/activityService';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const DeletedCourses = () => {
   const [user] = useAuthState(auth);
   const [deletedCourses, setDeletedCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [restoringCourseId, setRestoringCourseId] = useState(null);
+  const [courseToRestore, setCourseToRestore] = useState(null);
 
   useEffect(() => {
     const fetchDeletedCourses = async () => {
@@ -56,17 +58,22 @@ const DeletedCourses = () => {
     fetchDeletedCourses();
   }, [user]);
 
-  const handleRestore = async (courseId) => {
-    if (window.confirm("Are you sure you want to restore this course?")) {
-      setRestoringCourseId(courseId);
+  const handleRestoreClick = (courseId) => {
+    setCourseToRestore(courseId);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (courseToRestore) {
+      setRestoringCourseId(courseToRestore);
       try {
-        await restoreCourse(courseId);
-        await logActivity(user.uid, user.email, 'restore_course', { courseId });
-        setDeletedCourses(deletedCourses.filter(course => course.id !== courseId));
+        await restoreCourse(courseToRestore);
+        await logActivity(user.uid, user.email, 'restore_course', { courseId: courseToRestore });
+        setDeletedCourses(deletedCourses.filter(course => course.id !== courseToRestore));
       } catch (error) {
         console.error("Error restoring course:", error);
       } finally {
         setRestoringCourseId(null);
+        setCourseToRestore(null);
       }
     }
   };
@@ -98,7 +105,7 @@ const DeletedCourses = () => {
                         <p className="text-right text-sm text-muted-foreground mt-1">{Math.round(course.progress)}% Complete</p>
                       </div>
                       <Button
-                        onClick={() => handleRestore(course.id)}
+                        onClick={() => handleRestoreClick(course.id)}
                         disabled={restoringCourseId === course.id}
                         className="w-full"
                       >
@@ -118,6 +125,15 @@ const DeletedCourses = () => {
           )}
         </div>
       </MainLayout>
+      <ConfirmationModal
+        isOpen={!!courseToRestore}
+        onClose={() => setCourseToRestore(null)}
+        onConfirm={handleConfirmRestore}
+        title="Restore Course"
+        message="Are you sure you want to restore this course?"
+        confirmText="Restore"
+        confirmVariant="default"
+      />
     </AnimatedPage>
   );
 };

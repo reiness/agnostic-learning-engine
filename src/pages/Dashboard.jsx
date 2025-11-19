@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import MainLayout from '../components/MainLayout';
 import CourseCreationForm from '../components/CourseCreationForm';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db, deleteCourse } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth } from '../firebase';
 import { Link } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 import AnimatedPage from '../components/AnimatedPage';
@@ -11,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
+import { useUserCourses } from '../hooks/useUserCourses';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const formatDate = (timestamp) => {
   if (!timestamp) return "N/A";
@@ -25,57 +26,28 @@ const formatDate = (timestamp) => {
 
 const Dashboard = () => {
   const [user] = useAuthState(auth);
-  const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [deletingCourseId, setDeletingCourseId] = useState(null); // New state for animation
+  const { courses, loading, deletingCourseId, deleteCourse } = useUserCourses(user?.uid);
+  const [courseToDelete, setCourseToDelete] = useState(null);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      if (user) {
-        try {
-          const q = query(collection(db, "courses"), where("userId", "==", user.uid));
-          const querySnapshot = await getDocs(q);
-          const userCourses = await Promise.all(querySnapshot.docs.map(async (doc) => {
-            const courseData = { id: doc.id, ...doc.data() };
-            const modulesQuery = query(collection(db, "courses", doc.id, "modules"));
-            const modulesSnapshot = await getDocs(modulesQuery);
-            const modules = modulesSnapshot.docs.map(moduleDoc => moduleDoc.data());
-            const completedModules = modules.filter(m => m.isCompleted).length;
-            const totalModules = modules.length;
-            const progress = totalModules > 0 ? (completedModules / totalModules) * 100 : 0;
-            return { ...courseData, progress };
-          }));
-          setCourses(userCourses);
-        } catch (error) {
-          console.error("Error fetching courses:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    fetchCourses();
-  }, [user]);
+  const handleDeleteClick = (courseId) => {
+    setCourseToDelete(courseId);
+  };
 
-  const handleDelete = async (courseId) => {
-    if (window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
-      setDeletingCourseId(courseId); // Start animation
-      setTimeout(async () => {
-        try {
-          await deleteCourse(courseId);
-          setCourses(courses.filter(course => course.id !== courseId));
-        } catch (error) {
-          console.error("Error deleting course:", error);
-          // Optionally, show an error message to the user
-          setDeletingCourseId(null); // Reset animation state on error
-        }
-      }, 700); // Match this duration with the CSS transition duration
+  const handleConfirmDelete = async () => {
+    if (courseToDelete) {
+      await deleteCourse(courseToDelete);
+      setCourseToDelete(null);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setCourseToDelete(null);
   };
 
   const sidebarContent = (
     <div>
       <h2 className="text-2xl font-bold mb-6">My Courses</h2>
-      {isLoading ? <Spinner /> : (
+      {loading ? <Spinner /> : (
         <ul className="space-y-3">
           {courses.map(course => (
             <li key={course.id}>
@@ -106,7 +78,7 @@ const Dashboard = () => {
           <CourseCreationForm />
           <div className="mt-12">
             <h2 className="text-3xl font-bold mb-6">Your Courses</h2>
-            {isLoading ? <Spinner /> : (
+            {loading ? <Spinner /> : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {courses.length > 0 ? (
                   courses.map(course => (
@@ -127,7 +99,7 @@ const Dashboard = () => {
                           variant="destructive"
                           size="icon"
                           className="flex-shrink-0"
-                          onClick={(e) => { e.preventDefault(); handleDelete(course.id); }}
+                          onClick={(e) => { e.preventDefault(); handleDeleteClick(course.id); }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -151,6 +123,15 @@ const Dashboard = () => {
           </div>
         </div>
       </MainLayout>
+      <ConfirmationModal 
+        isOpen={!!courseToDelete}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Course"
+        message="Are you sure you want to delete this course? This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="destructive"
+      />
     </AnimatedPage>
   );
 };

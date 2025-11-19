@@ -9,6 +9,39 @@ if (!admin.apps.length) {
 }
 
 export const handler = async (event, context) => {
+  // --- Security Check: Validate User Identity ---
+  // Check for the Authorization header
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.warn("Unauthorized access attempt: No Authorization header found.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+  let user;
+
+  try {
+    user = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    console.error("Error verifying auth token:", error);
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'Invalid authentication token.' }),
+    };
+  }
+
+  if (!user) {
+    console.warn("Unauthorized access attempt: No user verified.");
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ message: 'You must be logged in.' }),
+    };
+  }
+  // ----------------------------------------------
+
   try {
     const listUsersResult = await admin.auth().listUsers();
     const users = await Promise.all(listUsersResult.users.map(async (userRecord) => {

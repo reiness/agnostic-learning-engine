@@ -1,4 +1,4 @@
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
 
 export const logActivity = async (userId, userEmail, action, details) => {
@@ -41,8 +41,13 @@ export const getActivityLogs = async (userId, startAfterDoc = null) => {
 
 export const getActivityLogCount = async (userId) => {
   try {
+    const token = await auth.currentUser.getIdToken();
     const response = await fetch('/.netlify/functions/getActivityLogCount', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ userId }),
     });
     if (!response.ok) {
